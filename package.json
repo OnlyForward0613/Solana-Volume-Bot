@@ -1,0 +1,39 @@
+{
+  "name": "express-typecript-starter",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "ts-node ./src/app.ts",
+    "dev": "nodemon --exec ts-node ./src/app.ts",
+    "build": "tsc",
+    "serve": "node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.0",
+    "axios": "^1.7.9",
+    "bs58": "^6.0.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "fs": "^0.0.1-security",
+    "jito-ts": "^4.2.0",
+    "joi": "^17.13.3",
+    "mongoose": "^8.9.5",
+    "undici": "^7.3.0"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.6",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.10",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}
