@@ -4,6 +4,7 @@ import axios, { AxiosError } from "axios";
 import { COMMITMENT_LEVEL, JITO_FEE, RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT } from "../config";
 import { connection } from "../config";
 import { simulateTxBeforeSendBundle } from "./util";
+import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
 
 
 interface Blockhash {
@@ -11,7 +12,11 @@ interface Blockhash {
   lastValidBlockHeight: number;
 }
 
-export const jitoWithAxios = async (transactions: VersionedTransaction[], payer: Keypair) => {
+export const jitoWithAxios = async (
+  transactions: VersionedTransaction[], 
+  payer: Keypair,
+  latestBlockhash: BlockhashWithExpiryBlockHeight
+) => {
 
   console.log('Starting Jito transaction execution...');
   const tipAccounts = [
@@ -30,7 +35,6 @@ export const jitoWithAxios = async (transactions: VersionedTransaction[], payer:
 
   try {
     console.log(`Calculated fee: ${JITO_FEE / LAMPORTS_PER_SOL} sol`);
-    let latestBlockhash = await connection.getLatestBlockhash();
     const jitTipTxFeeMessage = new TransactionMessage({
       payerKey: payer.publicKey,
       recentBlockhash: latestBlockhash.blockhash,

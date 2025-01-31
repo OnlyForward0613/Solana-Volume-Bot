@@ -41,6 +41,9 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ) {
+    
+    let latestBlockhash = await this.connection.getLatestBlockhash();
+    console.log(latestBlockhash);
 
     let tokenMetadata = await this.createTokenMetadata(createTokenMetadata); // get ipfs url from pumpfun ipfs api
 
@@ -59,6 +62,7 @@ export class PumpFunSDK {
       newTx,
       creator.publicKey,
       [creator, mint],
+      latestBlockhash,
       priorityFees,
       commitment,
       finality
@@ -85,6 +89,7 @@ export class PumpFunSDK {
           buyTx,
           buyers[i].publicKey,
           [buyers[i]],
+          latestBlockhash,
           priorityFees,
           commitment,
           finality
@@ -106,7 +111,7 @@ export class PumpFunSDK {
     let result;
     let count = 0;
     while(1) {
-      result = await jitoWithAxios([...buyTxs], creator);
+      result = await jitoWithAxios([...buyTxs], creator, latestBlockhash);
       if (result.confirmed) break;
       count++;
       if (count > 3) return result;
@@ -126,6 +131,9 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ) {
+    let latestBlockhash = await this.connection.getLatestBlockhash();
+    console.log(latestBlockhash);
+
     const versionedTxs: VersionedTransaction[] = [];
     for (let i = 0; i < actions.length; i++) {
       let tx: Transaction;
@@ -155,6 +163,7 @@ export class PumpFunSDK {
         tx,
         accounts[i].publicKey,
         [accounts[i]],
+        latestBlockhash,
         priorityFees,
         commitment,
         finality
@@ -164,7 +173,7 @@ export class PumpFunSDK {
     let result;
     let count = 0;
     while(1) {
-      result = await jitoWithAxios([...versionedTxs], creator);
+      result = await jitoWithAxios([...versionedTxs], creator, latestBlockhash);
       if (result.confirmed) break;
       count++;
       if (count > 3) return result;
@@ -381,7 +390,7 @@ async buy(
       buyer,
       mint,
       globalAccount.feeRecipient,
-      buyAmount,
+      BigInt(0), //buyAmount,
       buyAmountWithSlippage,
     );
   }
