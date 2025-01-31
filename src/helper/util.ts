@@ -1,13 +1,12 @@
-import { BlockSignatures, Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, LAMPORTS_PER_SOL, PublicKey, SendTransactionError, Transaction, TransactionMessage, VersionedTransaction, VersionedTransactionResponse } from "@solana/web3.js";
+import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, LAMPORTS_PER_SOL, PublicKey, SendTransactionError, Transaction, TransactionMessage, VersionedTransaction, VersionedTransactionResponse } from "@solana/web3.js";
 import { PriorityFee, TransactionResult } from "../pumpfun/types";
-import { build } from "joi";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import fs from "fs";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { Version } from "@solana/web3.js";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";git 
 import base58 from "bs58";
+import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
 
-export const DEFAULT_COMMITMENT: Commitment = "finalized";
+export const DEFAULT_COMMITMENT: Commitment = "confirmed";
 export const DEFAULT_FINALITY: Finality = "finalized";
 
 export async function printSOLBalance(
@@ -82,6 +81,7 @@ export async function buildTx(
   tx: Transaction,
   payer: PublicKey,
   signers: Keypair[],
+  latestBlockhash: BlockhashWithExpiryBlockHeight,
   priorityFees?: PriorityFee,
   commitment: Commitment = DEFAULT_COMMITMENT,
   finality: Finality = DEFAULT_FINALITY
@@ -100,7 +100,7 @@ export async function buildTx(
     newTx.add(addPriorityFee);
   }
   newTx.add(tx);
-  let versionedTx = await buildVersionedTx(connection, payer, newTx, commitment);
+  let versionedTx = await buildVersionedTx(connection, payer, newTx, latestBlockhash, commitment);
   versionedTx.sign(signers);
   return versionedTx;
 }
@@ -109,14 +109,14 @@ export const buildVersionedTx = async (
   connection: Connection,
   payer: PublicKey,
   tx: Transaction,
+  latestBlockhash: BlockhashWithExpiryBlockHeight,
   commitment: Commitment = DEFAULT_COMMITMENT
 ): Promise<VersionedTransaction> => {
-  const blockHash = (await connection.getLatestBlockhash(commitment))
-    .blockhash;
+  const blockhash = latestBlockhash.blockhash;
 
   let messageV0 = new TransactionMessage({
     payerKey: payer,
-    recentBlockhash: blockHash,
+    recentBlockhash: blockhash,
     instructions: tx.instructions,
   }).compileToV0Message();
 
@@ -129,6 +129,7 @@ export async function sendTx(
   tx: Transaction,
   payer: PublicKey,
   signers: Keypair[],
+  latestBlockhash: BlockhashWithExpiryBlockHeight,
   priorityFees?: PriorityFee,
   commitment: Commitment = DEFAULT_COMMITMENT,
   finality: Finality = DEFAULT_FINALITY
@@ -147,7 +148,7 @@ export async function sendTx(
     newTx.add(addPriorityFee);
   }
   newTx.add(tx);
-  let versionedTx = await buildVersionedTx(connection, payer, newTx, commitment);
+  let versionedTx = await buildVersionedTx(connection, payer, newTx, latestBlockhash, commitment);
   versionedTx.sign(signers);
   try {
     console.log((await connection.simulateTransaction(versionedTx, undefined)))
@@ -210,6 +211,10 @@ export const getRandomInt = (min: number, max: number): number => {
   return Math.floor(Math.random() * (max - min + 1)) + min; // The maximum is inclusive, the minimum is inclusive
 }
 
+export const sleep = async (ms: number) => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export const calculateWithSlippageBuy = (
   amount: bigint,
   basisPoints: bigint
@@ -223,7 +228,7 @@ export const simulateTxBeforeSendBundle = async (
 ) => {
   const results = await Promise.all(txs.map(async (tx) => {
     try {
-      const txid = await connection.simulateTransaction(tx, { commitment: 'finalized'});
+      const txid = await connection.simulateTransaction(tx, { commitment: DEFAULT_COMMITMENT});
       const sig = base58.encode(tx.signatures[0]);
       if (txid.value.err) {
         console.log(`simulation err, sig: ${sig}`, txid.value.err);
@@ -246,7 +251,7 @@ export const simulateTxBeforeSendBundle = async (
 
   // for (const tx of txs) {
   //   try {
-  //     const txid = await connection.simulateTransaction(tx, { commitment: 'finalized'});
+  //     const txid = await connection.simulateTransaction(tx, { commitment: 'confirmed'});
   //     const sig = base58.encode(tx.signatures[0]);
   //     if (txid.value.err) {
   //       console.log(`simulation err, sig: ${sig}`, txid.value.err);
