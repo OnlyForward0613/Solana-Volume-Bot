@@ -26,5 +26,8 @@ export default {
     sniper: Joi.string().optional().max(100),
     fund: Joi.string().optional().max(100),
     common: Joi.array().optional().items(Joi.string().max(100))
+  }),
+  importFundWallet: Joi.object().keys({
+    fund: Joi.string().required().max(100),
   })
 };

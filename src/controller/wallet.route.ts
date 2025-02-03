@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { getAllWallets } from "../cache/repository/WalletCache";
-import { addToList, getCommonWalletsCounts, getListRange, setList, setValue } from "../cache/query";
+import { addToList, getCommonWalletsCounts, getListRange, getValue, keyExists, setList, setValue } from "../cache/query";
 import { Keypair } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { WalletKey } from "../cache/keys";
@@ -63,6 +63,7 @@ export const generateDevWallet = async (req: Request, res: Response) => {
   }
 }
 
+
 export const generateSniperWallet = async (req: Request, res: Response) => {
   const allWallets = await getAllWallets();
   while (1) {
@@ -75,7 +76,7 @@ export const generateSniperWallet = async (req: Request, res: Response) => {
   }
 }
 
-
+// import dev, sniper and common wallets
 export const importWallets = async (req: Request, res: Response) => {
   const devPrivateKey = req.body.dev ?? "";
   const sniperPrivateKey = req.body.sniper ?? "";
@@ -118,6 +119,46 @@ export const importWallets = async (req: Request, res: Response) => {
     res.status(404).send("Errors in adding address into redis");
   }
 }
+
+// import fund wallet
+export const importFundWallet = async (req: Request, res: Response) => {
+  const fundPrivateKey = req.body.fund;
+  if (!isValidSolanaPrivateKey([fundPrivateKey])) {
+    console.log("Invalid Fund Wallet");
+    res.status(404).send("Invalid Fund Wallet");
+    return;
+  }
+
+  try {
+    if (await keyExists(WalletKey.FUND)) {
+      console.log("fund wallet already exists on database");
+      res.status(404).send("Fund Wallet already exists on database");
+      return;
+    }
+    await setValue(WalletKey.FUND, fundPrivateKey);
+    res.status(200).send("Importing fund wallet is Ok");
+  } catch (err) {
+    console.error(`There are some errors when importing fund wallet into database`);
+    res.status(404).send("Errors when importing fund wallet into database");
+  }
+}
+
+// export all wallets
+export const exportWallets = async (req: Request, res: Response) => {
+  try {
+    const data = {
+      fund: await getValue(WalletKey.FUND) ?? "",
+      dev: await getValue(WalletKey.DEV) ?? "",
+      sniper: await getValue(WalletKey.SNIPER) ?? "",
+      common: await getListRange(WalletKey.COMMON) ?? []
+    }
+    res.status(200).json(data);
+  } catch (err) {
+    console.log(`Error when getting address from database, ${err}`);
+    res.status(404).send("Error when getting address from database");
+  }
+}
+
 
 
 
