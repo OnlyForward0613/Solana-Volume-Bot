@@ -2,9 +2,10 @@ import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, LAMPOR
 import { PriorityFee, TransactionResult } from "../pumpfun/types";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import fs from "fs";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";git 
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import base58 from "bs58";
 import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
+import { Key } from "../cache/keys";
 
 export const DEFAULT_COMMITMENT: Commitment = "confirmed";
 export const DEFAULT_FINALITY: Finality = "finalized";
@@ -21,6 +22,8 @@ export async function printSOLBalance(
     `SOL`
   );
 }
+
+
 
 export const printSPLBalance = async (
   connection: Connection,
@@ -273,3 +276,25 @@ export const calculateWithSlippageSell = (
 ) => {
   return amount - (amount * basisPoints) / 10000n;
 };
+
+export const createNewPrivateKeyBasedonAssets = (allWallets: string[]) => {
+  while (1) {
+    const newWalletPrivateKey = bs58.encode(Keypair.generate().secretKey); 
+    if (!allWallets.includes(newWalletPrivateKey)) {
+      return newWalletPrivateKey;
+    }
+  }
+}
+
+// check if given string is valid solana private key
+export const isValidSolanaPrivateKey = (keys: string[]) => {
+  try {
+    keys.map(key => {
+      Keypair.fromSecretKey(bs58.decode(key));
+    });
+    return true;
+  } catch (err) {
+    console.log(`Invalid solana address, ${err}`);
+    return false;
+  }
+}

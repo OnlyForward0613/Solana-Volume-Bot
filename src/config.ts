@@ -23,7 +23,7 @@ export const private_connection = new Connection(PRIVATE_RPC_ENDPOINT, {
 
 export const getProvider = () => {
   let wallet = new NodeWallet(new Keypair());
-  return new AnchorProvider(connection, wallet, { commitment: "finalized" })
+  return new AnchorProvider(connection, wallet, { commitment: COMMITMENT_LEVEL })
 }
 export const anchorProvider = getProvider();
 
@@ -36,5 +36,19 @@ export const JITO_FEE = 2000000; // 0.002 sol
 // pumpfun sdk
 export const global_mint = new PublicKey("p89evAyzjd9fphjJx7G3RFA48sbZdpGEppRcfRNpump");
 export const sdk = new PumpFunSDK(anchorProvider);
+
+
+// redis server setting
+export const redis = {
+  host: process.env.REDIS_HOST || '',
+  port: parseInt(process.env.REDIS_PORT || '0'),
+  password: process.env.REDIS_PASSWORD || '',
+};
+
+export const environment = process.env.NODE_ENV || 'development'
+
+
+// wallet count limit
+export const MAX_COMMON_WALLETS_NUMS = 20;
 
 

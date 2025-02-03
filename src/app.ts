@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 // import bodyParser from "body-parser";
-import { db } from "./dbConnection";
+// import { db } from "./dbConnection";
+import './cache';
 import router from "./routes/main.route";
 
 const app = express();
@@ -15,8 +16,17 @@ app.get("/", (req: Request, res: Response) => {
 
 app.use("/api/v1", router);
 
-db.then(() => {
-  app.listen(port, () => {
-    console.log(`Server is running on port http://localhost:${port}`);
-  });
-});
+
+// When using mongodb
+// db.then(() => {
+//   app.listen(port, () => {
+//     console.log(`Server is running on port http://localhost:${port}`);
+//   });
+// });
+
+app
+  .listen(port, () => {
+    console.log(`server running on port : ${port}`);
+  })
+  .on('error', (e) => console.error(e));
+
