@@ -12,13 +12,7 @@ interface Blockhash {
   lastValidBlockHeight: number;
 }
 
-export const jitoWithAxios = async (
-  transactions: VersionedTransaction[], 
-  payer: Keypair,
-  latestBlockhash: BlockhashWithExpiryBlockHeight
-) => {
-
-  console.log('Starting Jito transaction execution...');
+export const getJitoTipWallet = () => {
   const tipAccounts = [
     'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
     'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
@@ -29,8 +23,18 @@ export const jitoWithAxios = async (
     'ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt',
     'DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh',
   ];
-  const jitoFeeWallet = new PublicKey(tipAccounts[Math.floor(tipAccounts.length * Math.random())])
+  return new PublicKey(tipAccounts[Math.floor(tipAccounts.length * Math.random())])
+}
 
+export const jitoWithAxios = async (
+  transactions: VersionedTransaction[], 
+  payer: Keypair,
+  latestBlockhash: BlockhashWithExpiryBlockHeight
+) => {
+
+  console.log('Starting Jito transaction execution...');
+
+  const jitoFeeWallet = getJitoTipWallet();
   console.log(`Selected Jito fee wallet: ${jitoFeeWallet.toBase58()}`);
 
   try {

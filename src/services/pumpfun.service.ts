@@ -1,12 +1,17 @@
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { CreateAndBuyInput } from "../types";
+import { CreateAndBuyInputType, DistributionType } from "../types";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { getOrCreateKeypair, getSPLBalance, printSOLBalance, printSPLBalance, sleep } from "../helper/util";
-import { connection, sdk } from "../config";
+import { buildVersionedTx, getOrCreateKeypair, getSPLBalance, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
+import { connection, JITO_FEE, sdk } from "../config";
 import metadata from "../helper/metadata";
 import { openAsBlob } from "fs";
 import { DEFAULT_DECIMALS } from "../pumpfun/sdk";
 import { MARKETActionType } from "../pumpfun/types";
+import base58 from "bs58";
+import { SystemProgram } from "@solana/web3.js";
+import { getJitoTipWallet } from "../helper/jitoWithAxios";
+import chunk from 'lodash/chunk';
+import { Transaction } from "@solana/web3.js";
 
 const KEYS_FOLDER = __dirname + "/.keys";
 const SLIPPAGE_BASIS_POINTS = 100n;
@@ -15,8 +20,8 @@ export async function createAndBuyService(
   { 
     devPrivateKey,
     buyerPrivateKey,
-    amount: bigint 
-  }: CreateAndBuyInput) {
+    amount 
+  }: CreateAndBuyInputType) {
 
   const devAccount = Keypair.fromSecretKey(bs58.decode(devPrivateKey)); 
   console.log(`devAccount: ${devAccount.publicKey.toBase58()}`);
@@ -155,4 +160,62 @@ export async function createAndBuyService(
       }
     }
   }
+}
+
+export const distributionService = async (
+  { 
+    fundWalletPrivateKey,
+    walletPrivateKeys,
+    solAmounts
+  }: DistributionType) => {
+
+  const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletPrivateKey));
+
+  console.log(fundAccount.publicKey);
+  printSOLBalance(connection, fundAccount.publicKey, "Sol info");
+
+  const walletAccounts = walletPrivateKeys.map(privateKey => Keypair.fromSecretKey(base58.decode(privateKey)));
+  walletAccounts.forEach((account, index) => {
+    console.log(`${index} `, account.publicKey);
+  });
+  let instructions = walletAccounts.map((account, index) => {
+    console.log(`${index}: `, BigInt(Math.floor(LAMPORTS_PER_SOL * solAmounts[index])));
+    return SystemProgram.transfer({
+      fromPubkey: fundAccount.publicKey,
+      toPubkey: account.publicKey,
+      lamports: BigInt(Math.floor(LAMPORTS_PER_SOL * solAmounts[index]))
+    });
+  })
+  instructions.push(
+    SystemProgram.transfer({
+      fromPubkey: fundAccount.publicKey,
+      toPubkey: getJitoTipWallet(),
+      lamports: JITO_FEE,
+    })
+  )
+
+  const chunkInstrunctions = chunk(instructions, 5);
+  console.log(chunkInstrunctions);
+
+  const lastestBlockhash = await connection.getLatestBlockhash();
+
+  const versionedTxs = await Promise.all(chunkInstrunctions.map(async (instructions) => {
+    const tx = new Transaction().add(...instructions);
+    const accounts: any[] = [];
+    tx.instructions.map((ix) => {
+      accounts.push(...ix.keys);
+    })
+    console.log(accounts);
+    const versionedTx = await buildVersionedTx(connection, fundAccount.publicKey, tx, lastestBlockhash);
+    versionedTx.sign([fundAccount]);
+    return versionedTx;
+  }));
+
+  versionedTxs.map((versionedTx, index) => {
+    console.log(`txsize${index}: `, versionedTx.serialize().length);
+  });
+
+  const result = await simulateTxBeforeSendBundle(connection, versionedTxs);
+  console.log(result);
+  
 }
