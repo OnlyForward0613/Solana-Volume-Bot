@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { JITO_FEE, RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT } from '../config';
 export default {
   credential: Joi.object().keys({
     email: Joi.string().required().email(),
@@ -29,5 +30,17 @@ export default {
   }),
   importFundWallet: Joi.object().keys({
     fund: Joi.string().required().max(100),
-  })
+  }),
+  
+  // RPC and WEBSOCKET ENDPOINT, JITO_FEE
+  setNetwork: Joi.object().keys({
+    RPC_ENDPOINT: Joi.string().optional(),
+    RPC_WEBSOCKET_ENDPOINT: Joi.string().optional(),
+    JITO_FEE: Joi.number().optional().greater(0),
+  }),
+  setBuyAmounts: Joi.object().keys({
+    dev: Joi.number().required().greater(0),
+    sniper: Joi.number().required().greater(0),
+    common: Joi.array().required().items(Joi.number().greater(0)),
+  }),
 };

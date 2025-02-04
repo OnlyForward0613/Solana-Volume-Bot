@@ -8,6 +8,12 @@ export enum DynamicKey {
   WALLET = 'WALLET',
 }
 
+export enum NetworkType {
+  RPC_ENDPOINT = 'RPC_ENDPOINT',
+  RPC_WEBSOCKET_ENDPOINT = 'RPC_WEBSOCKET_ENDPOINT',
+  JITO_FEE = 'JITO_FEE',
+}
+
 export enum WalletType {
   COMMON = 'COMMON',
   FUND = 'FUND',
@@ -20,10 +26,16 @@ export enum WalletKey {
   FUND = `${DynamicKey.WALLET}_${WalletType.FUND}`,
   DEV = `${DynamicKey.WALLET}_${WalletType.DEV}`,
   SNIPER = `${DynamicKey.WALLET}_${WalletType.SNIPER}`,
-
 }
 
-export type DynamicKeyType = `${DynamicKey}_${string}`;
+export enum AmountType {
+  DEV = 'DEV_AMOUNT',
+  SNIPER = 'SNIPER_AMOUNT',
+  COMMON = 'COMMON_AMOUNTS',
+  FUND = 'FUND_AMOUNT',
+}
+
+export type DynamicKeyType = `${DynamicKey}_${string}` | NetworkType | AmountType;
 
 export function getDynamicKey(key: DynamicKey, suffix: string) {
   const dynamic: DynamicKeyType = `${key}_${suffix}`;

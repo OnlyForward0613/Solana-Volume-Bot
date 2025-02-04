@@ -3,9 +3,10 @@ import { getAllWallets } from "../cache/repository/WalletCache";
 import { addToList, getCommonWalletsCounts, getListRange, getValue, keyExists, setList, setValue } from "../cache/query";
 import { Keypair } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { WalletKey } from "../cache/keys";
-import { MAX_COMMON_WALLETS_NUMS } from "../config";
+import { AmountType, NetworkType, WalletKey } from "../cache/keys";
+import { MAX_COMMON_WALLETS_NUMS, RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT } from "../config";
 import { createNewPrivateKeyBasedonAssets, isValidSolanaPrivateKey } from "../helper/util";
+import { ResponseStatus } from "../core/ApiResponse";
 
 
 export const generateCommonWallets = async (req: Request, res: Response) => {
@@ -19,7 +20,7 @@ export const generateCommonWallets = async (req: Request, res: Response) => {
   // Check if wallet counts exists MAX wallet limits
   if (existNums + nums > MAX_COMMON_WALLETS_NUMS) {
     console.log(existNums + nums);
-    res.status(404).send(`generating num exceed MAX wallet numbers: ${MAX_COMMON_WALLETS_NUMS}`);
+    res.status(ResponseStatus.NOT_FOUND).send(`generating num exceed MAX wallet numbers: ${MAX_COMMON_WALLETS_NUMS}`);
     return;
   }
 
@@ -42,10 +43,10 @@ export const generateCommonWallets = async (req: Request, res: Response) => {
       await setList(WalletKey.COMMON, newPrivateKeys);
       console.log('current wallets', (await getListRange<string>(WalletKey.COMMON))?.length);
     }
-    res.status(200).send(JSON.stringify(newPrivateKeys));
+    res.status(ResponseStatus.SUCCESS).send(JSON.stringify(newPrivateKeys));
   } catch (err) {
     console.log(`There were some errors when adding private key into redis, ${err}`);
-    res.status(404).send("Errors in adding address into redis");
+    res.status(ResponseStatus.NOT_FOUND).send("Errors in adding address into redis");
   }
   
 }
@@ -57,7 +58,7 @@ export const generateDevWallet = async (req: Request, res: Response) => {
     const newPrivateKey = bs58.encode(Keypair.generate().secretKey);
     if (!allWallets.includes(newPrivateKey)) {
       await setValue(WalletKey.DEV, newPrivateKey);
-      res.status(200).send(newPrivateKey);
+      res.status(ResponseStatus.SUCCESS).send(newPrivateKey);
       return;
     }
   }
@@ -70,7 +71,7 @@ export const generateSniperWallet = async (req: Request, res: Response) => {
     const newPrivateKey = bs58.encode(Keypair.generate().secretKey);
     if (!allWallets.includes(newPrivateKey)) {
       await setValue(WalletKey.SNIPER, newPrivateKey);
-      res.status(200).send(newPrivateKey);
+      res.status(ResponseStatus.SUCCESS).send(newPrivateKey);
       return;
     }
   }
@@ -84,26 +85,26 @@ export const importWallets = async (req: Request, res: Response) => {
   
   // Check if input addresses are valid solana addresses 
   if (!isValidSolanaPrivateKey([devPrivateKey, sniperPrivateKey, ...commonPrivateKeys])) {
-    res.status(404).send("Invalid Input");
+    res.status(ResponseStatus.NOT_FOUND).send("Invalid Input");
     return;
   }
 
   // Check if input addresses already exists
   const allWallets = await getAllWallets();
   if (devPrivateKey && allWallets.includes(devPrivateKey)) {
-    res.status(404).send("devWallet already exists");
+    res.status(ResponseStatus.NOT_FOUND).send("devWallet already exists");
     console.log("devWallet already exists");
     return;
   }
   if (sniperPrivateKey && allWallets.includes(sniperPrivateKey)) {
-    res.status(404).send("sniperWallet already exists");
+    res.status(ResponseStatus.NOT_FOUND).send("sniperWallet already exists");
     console.log("devWallet already exists");
     return;
   }
 
   for (let key of commonPrivateKeys) {
     if (allWallets.includes(key)) {
-      res.status(404).send("some common wallets already exists");
+      res.status(ResponseStatus.NOT_FOUND).send("some common wallets already exists");
       console.log("some common wallets already exists");
       return;
     }
@@ -113,10 +114,10 @@ export const importWallets = async (req: Request, res: Response) => {
     if (devPrivateKey) await setValue(WalletKey.DEV, devPrivateKey);
     if (sniperPrivateKey)  await setValue(WalletKey.SNIPER, sniperPrivateKey);
     if (commonPrivateKeys.length) await setList(WalletKey.COMMON, commonPrivateKeys);
-    res.status(200).send("Importing wallets is Ok");
+    res.status(ResponseStatus.SUCCESS).send("Importing wallets is Ok");
   } catch (err) {
     console.log(`There were some errors when adding private key into redis, ${err}`);
-    res.status(404).send("Errors in adding address into redis");
+    res.status(ResponseStatus.NOT_FOUND).send("Errors in adding address into redis");
   }
 }
 
@@ -125,21 +126,21 @@ export const importFundWallet = async (req: Request, res: Response) => {
   const fundPrivateKey = req.body.fund;
   if (!isValidSolanaPrivateKey([fundPrivateKey])) {
     console.log("Invalid Fund Wallet");
-    res.status(404).send("Invalid Fund Wallet");
+    res.status(ResponseStatus.NOT_FOUND).send("Invalid Fund Wallet");
     return;
   }
 
   try {
     if (await keyExists(WalletKey.FUND)) {
       console.log("fund wallet already exists on database");
-      res.status(404).send("Fund Wallet already exists on database");
+      res.status(ResponseStatus.NOT_FOUND).send("Fund Wallet already exists on database");
       return;
     }
     await setValue(WalletKey.FUND, fundPrivateKey);
-    res.status(200).send("Importing fund wallet is Ok");
+    res.status(ResponseStatus.SUCCESS).send("Importing fund wallet is Ok");
   } catch (err) {
     console.error(`There are some errors when importing fund wallet into database`);
-    res.status(404).send("Errors when importing fund wallet into database");
+    res.status(ResponseStatus.NOT_FOUND).send("Errors when importing fund wallet into database");
   }
 }
 
@@ -152,12 +153,90 @@ export const exportWallets = async (req: Request, res: Response) => {
       sniper: await getValue(WalletKey.SNIPER) ?? "",
       common: await getListRange(WalletKey.COMMON) ?? []
     }
-    res.status(200).json(data);
+    res.status(ResponseStatus.SUCCESS).json(data);
   } catch (err) {
     console.log(`Error when getting address from database, ${err}`);
-    res.status(404).send("Error when getting address from database");
+    res.status(ResponseStatus.NOT_FOUND).send("Error when getting address from database");
   }
 }
+
+// set RPC info 
+export const setNetwork = async (req: Request, res: Response) => {
+  try {
+    const {
+      RPC_ENDPOINT,
+      RPC_WEBSOCKET_ENDPOINT,
+      JITO_FEE
+    } = req.body;
+    if (RPC_ENDPOINT) {
+      await setValue(NetworkType.RPC_ENDPOINT, RPC_ENDPOINT);
+    }
+    if (RPC_WEBSOCKET_ENDPOINT) {
+      await setValue(NetworkType.RPC_WEBSOCKET_ENDPOINT, RPC_WEBSOCKET_ENDPOINT);
+    }
+    if (JITO_FEE) {
+      await setValue(NetworkType.JITO_FEE, JITO_FEE);
+    }
+    res.status(ResponseStatus.SUCCESS).send("Setting network configuration is OK");
+  } catch (err) {
+    console.log(`Errors when setting network configuration, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send("Errors when setting network configuration");
+  }
+}
+
+// get RPC info
+export const getNetwork = async (req: Request, res: Response) => {
+  try {
+    const data = {
+      RPC_ENDPOINT: await getValue(NetworkType.RPC_ENDPOINT) ?? "",
+      RPC_WEBSOCKET_ENDPOINT: await getValue(NetworkType.RPC_WEBSOCKET_ENDPOINT) ?? "",
+      JITO_FEE: await getValue(NetworkType.JITO_FEE) ?? 0,
+    }
+    res.status(ResponseStatus.SUCCESS).send(data);
+  } catch (err) {
+    console.log(`Errors when getting network configuration, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send("Errors when getting network configuration");
+  }
+}
+
+// set buy options (buy amount)
+export const setBuyAmounts = async (req: Request, res: Response) => {
+  try {
+    const {
+      dev: devAmount,
+      sniper: sniperAmount,
+      common: commonAmounts
+    } = req.body;
+    if (devAmount) {
+      await setValue(AmountType.DEV, devAmount);
+    }
+    if (sniperAmount) {
+      await setValue(AmountType.SNIPER, sniperAmount);
+    }
+    if (commonAmounts && commonAmounts.length) {
+      await setList(AmountType.COMMON, commonAmounts);
+    }
+    res.status(ResponseStatus.SUCCESS).send("Setting buy options is Ok");
+  } catch (err) {
+    console.log(`Errors when setting buy options, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send("Errors when setting buy options");
+  }
+}
+
+// get buy options 
+export const getBuyAmounts = async (req: Request, res: Response) => {
+  try {
+    const data = {
+      dev: await getValue(AmountType.DEV) ?? 0,
+      sniper: await getValue(AmountType.SNIPER) ?? 0,
+      common: await getListRange(AmountType.COMMON) ?? [],
+    }
+    res.status(ResponseStatus.SUCCESS).send(data);
+  } catch (err) {
+    console.log(`Errors when getting buy amounts from database, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send("Errors when getting buy amounts from database");
+  }
+ }
 
 
 
