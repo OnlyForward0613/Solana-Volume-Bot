@@ -1,18 +1,12 @@
 import { createClient } from "redis";
-// import { redis } from "../config";
+import { redis } from "../config";
 
-const redisURL = 'redis://localhost:6379';
-// const redisURL = 'redis://Qwe123!@#@redis-14659.c256.us-east-1-2.ec2.redns.redis-cloud.com:14659';
+// const redisURL = 'redis://localhost:6379';
+
+const redisURL = `redis://default:${redis.password}@${redis.host}:${redis.port}`;
 
 const client = createClient({ url: redisURL });
-// const client = createClient({
-//   username: 'default',
-//   password: 'Qwe123!@#',
-//   socket: {
-//     host: 'redis-14659.c256.us-east-1-2.ec2.redns.redis-cloud.com',
-//     port: 14659
-//   }
-// });
+
 
 client.on('connect', () => console.log("Cache is connected"));
 client.on('ready', () => console.log("Cache is ready"));
