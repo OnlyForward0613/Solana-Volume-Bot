@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { JITO_FEE, RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT } from '../config';
 export default {
   credential: Joi.object().keys({
     email: Joi.string().required().email(),
@@ -18,6 +19,10 @@ export default {
     password: Joi.string().required().min(6),
     profilePicUrl: Joi.string().optional().uri(),
   }),
+  distributionToWallets: Joi.object().keys({
+    sniperAmount: Joi.number().required().greater(0),
+    commonAmounts: Joi.array().required().items(Joi.number().greater(0)),
+  }),
   generateCommonWallets: Joi.object().keys({
     nums: Joi.string().required().min(1).max(2),
   }),
@@ -29,5 +34,32 @@ export default {
   }),
   importFundWallet: Joi.object().keys({
     fund: Joi.string().required().max(100),
-  })
+  }),
+  
+  // RPC and WEBSOCKET ENDPOINT, JITO_FEE
+  setNetwork: Joi.object().keys({
+    RPC_ENDPOINT: Joi.string().optional(),
+    RPC_WEBSOCKET_ENDPOINT: Joi.string().optional(),
+    JITO_FEE: Joi.number().optional().greater(0),
+  }),
+  setBuyAmounts: Joi.object().keys({
+    dev: Joi.number().required().greater(0),
+    sniper: Joi.number().required().greater(0),
+    common: Joi.array().required().items(Joi.number().greater(0)),
+  }),
+  setSellPercentage: Joi.object().keys({
+    sellPercentage: Joi.array().length(4).required().items(Joi.number().greater(0).less(100)),
+  }),
+  setSellAmount: Joi.object().keys({
+    sellAmount: Joi.number().required().greater(0),
+  }),
+  setTokenMetadata: Joi.object().keys({
+    name: Joi.string().required(),
+    symbol: Joi.string().required(),
+    description: Joi.string().required().min(3).max(200),
+    website: Joi.string().optional().uri(),
+    telegram: Joi.string().optional().uri(),
+    twitter: Joi.string().optional().uri(),
+    file: Joi.string().required().uri(),
+  }),
 };
