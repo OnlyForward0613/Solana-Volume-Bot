@@ -1,5 +1,6 @@
 export enum Key {
   BLOGS_LATEST = 'BLOGS_LATEST',
+  TOKEN_METADATA = 'TOKEN_METADATA',
 }
 
 export enum DynamicKey {
@@ -33,7 +34,10 @@ export enum AmountType {
   SNIPER = 'SNIPER_AMOUNT',
   COMMON = 'COMMON_AMOUNTS',
   FUND = 'FUND_AMOUNT',
+  SELL_PERCENTAGE = 'SELL_PERCENTAGE',
+  SELL_AMOUNT = 'SELL_AMOUNT',
 }
+
 
 export type DynamicKeyType = `${DynamicKey}_${string}` | NetworkType | AmountType;
 

@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
 import { getAllWallets } from "../cache/repository/WalletCache";
-import { addToList, getCommonWalletsCounts, getListRange, getValue, keyExists, setList, setValue } from "../cache/query";
+import { addToList, getCommonWalletsCounts, getHash, getJson, getListRange, getValue, keyExists, setHash, setJson, setList, setValue } from "../cache/query";
 import { Keypair } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { AmountType, NetworkType, WalletKey } from "../cache/keys";
-import { MAX_COMMON_WALLETS_NUMS, RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT } from "../config";
+import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
+import { MAX_COMMON_WALLETS_NUMS} from "../config";
 import { createNewPrivateKeyBasedonAssets, isValidSolanaPrivateKey } from "../helper/util";
 import { ResponseStatus } from "../core/ApiResponse";
+import { CreateTokenMetadata } from "../pumpfun/types";
 
 
 export const generateCommonWallets = async (req: Request, res: Response) => {
@@ -238,6 +239,84 @@ export const getBuyAmounts = async (req: Request, res: Response) => {
   }
  }
 
+ // Set sell percentage
+ export const setSellPercentage = async (req: Request, res: Response) => {
+  try {
+    const {
+      sellPercentage
+    } = req.body;
+    if (sellPercentage && sellPercentage.length) await setList(AmountType.SELL_PERCENTAGE, sellPercentage);  
+    res.status(ResponseStatus.SUCCESS).send("Setting sell percentage is OK");
+  } catch (err) {
+    console.log(`Errors when setting sell percentage, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send("Errors when setting sell percentage");
+  }
+ }
 
+ // get sell percentage
+ export const getSellPercentage = async (req: Request, res: Response) => {
+  try {
+    const data = {
+      setSellPercentage: await getListRange(AmountType.SELL_PERCENTAGE) ?? []
+    }
+    res.status(ResponseStatus.SUCCESS).send(data);
+  } catch (err) {
+    console.log(`Errors when getting sell percentage, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send("Errors when getting sell percentage");
+  }
+}
 
+// Set sell amount
+export const setSellAmount = async (req: Request, res: Response) => {
+  try {
+    const {
+      sellAmount
+    } = req.body;
+    if (sellAmount) {
+      await setValue(AmountType.SELL_AMOUNT, sellAmount);
+    }
+    res.status(ResponseStatus.SUCCESS).send("Setting sell amount is OK");
+  } catch (err) {
+    console.log(`Errors when setting sell amount, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send("Errors when setting sell amount");
+  }
+}
+
+export const getSellAmount = async (req: Request, res: Response) => {
+  try {
+    const data = {
+      sellAmount: await getValue(AmountType.SELL_AMOUNT) ?? 0
+    }
+    res.status(ResponseStatus.SUCCESS).send(data);
+  } catch (err) {
+    console.log(`Errors when getting sell amount, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send("Errors when getting sell amount");
+  }
+}
+
+// set tokenMetadata info
+export const setTokenMetadataInfo = async (req: Request, res: Response) => {
+  try {
+    const tokenInfo: CreateTokenMetadata = req.body
+    if (tokenInfo) {
+      await setJson(Key.TOKEN_METADATA, tokenInfo);
+    }
+    res.status(ResponseStatus.SUCCESS).send("Setting tokenMetadata is OK");
+  } catch (err) {
+    console.log(`Errors when managing token info, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send("Errors when managing token info");
+  } 
+}
+
+// get createTokenMetadata info
+export const getTokenMetadataInfo = async (req: Request, res: Response) => {
+  try {
+    const data = await getJson(Key.TOKEN_METADATA);
+    console.log(data);
+    res.status(ResponseStatus.SUCCESS).send(data);
+  } catch (err) {
+    console.log(`Errors when getting tokenMetadata info, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send("Errors when getting tokenMetadata info");
+  }
+}
 

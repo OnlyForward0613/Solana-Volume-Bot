@@ -19,6 +19,10 @@ export default {
     password: Joi.string().required().min(6),
     profilePicUrl: Joi.string().optional().uri(),
   }),
+  distributionToWallets: Joi.object().keys({
+    sniperAmount: Joi.number().required().greater(0),
+    commonAmounts: Joi.array().required().items(Joi.number().greater(0)),
+  }),
   generateCommonWallets: Joi.object().keys({
     nums: Joi.string().required().min(1).max(2),
   }),
@@ -42,5 +46,20 @@ export default {
     dev: Joi.number().required().greater(0),
     sniper: Joi.number().required().greater(0),
     common: Joi.array().required().items(Joi.number().greater(0)),
+  }),
+  setSellPercentage: Joi.object().keys({
+    sellPercentage: Joi.array().length(4).required().items(Joi.number().greater(0).less(100)),
+  }),
+  setSellAmount: Joi.object().keys({
+    sellAmount: Joi.number().required().greater(0),
+  }),
+  setTokenMetadata: Joi.object().keys({
+    name: Joi.string().required(),
+    symbol: Joi.string().required(),
+    description: Joi.string().required().min(3).max(200),
+    website: Joi.string().optional().uri(),
+    telegram: Joi.string().optional().uri(),
+    twitter: Joi.string().optional().uri(),
+    file: Joi.string().required().uri(),
   }),
 };

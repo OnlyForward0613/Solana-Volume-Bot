@@ -26,6 +26,19 @@ export async function getValue(key: Key | DynamicKeyType) {
   return cache.get(key);
 }
 
+export async function setHashValue(
+  key: Key | DynamicKeyType,
+  value: any,
+  expireAt: Date | null = null,
+) {
+  if (expireAt) return cache.hSet(key, expireAt.getTime(), `${value}`);
+  else return cache.hSet(key, `${value}`, '');
+}
+
+export async function getHashValue(key: Key | DynamicKeyType) {
+  return cache.hGetAll(key);
+}
+
 export async function delByKey(key: Key | DynamicKeyType) {
   return cache.del(key);
 }
@@ -86,6 +99,26 @@ export async function getListRange<T>(
 
   const data = list.map((entry) => JSON.parse(entry) as T);
   return data;
+}
+
+
+export async function setHash(
+  key: Key | DynamicKeyType,
+  value: Record<string, unknown>,
+  expireAt: Date | null = null,
+) {
+  // const json = JSON.stringify(value);
+  return await setHashValue(key, value, expireAt);
+}
+
+export async function getHash<T>(key: Key | DynamicKeyType) {
+  const type = await cache.type(key);
+  if (type !== TYPES.HASH) return null
+  
+  return await getHashValue(key) as T;
+  // if (json) return JSON.parse(json) as T;
+
+  // return null;
 }
 
 export async function getCommonWalletsCounts() {

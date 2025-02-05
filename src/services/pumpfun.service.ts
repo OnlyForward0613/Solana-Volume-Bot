@@ -12,6 +12,7 @@ import { SystemProgram } from "@solana/web3.js";
 import { getJitoTipWallet } from "../helper/jitoWithAxios";
 import chunk from 'lodash/chunk';
 import { Transaction } from "@solana/web3.js";
+import { TransactionInstruction } from "@solana/web3.js";
 
 const KEYS_FOLDER = __dirname + "/.keys";
 const SLIPPAGE_BASIS_POINTS = 100n;
@@ -169,53 +170,66 @@ export const distributionService = async (
     solAmounts
   }: DistributionType) => {
 
-  const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletPrivateKey));
+  try {
+    const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletPrivateKey));
 
-  console.log(fundAccount.publicKey);
-  printSOLBalance(connection, fundAccount.publicKey, "Sol info");
+    console.log(fundAccount.publicKey);
+    console.log(walletPrivateKeys);
+    console.log(solAmounts);
+    printSOLBalance(connection, fundAccount.publicKey, "Sol info");
 
-  const walletAccounts = walletPrivateKeys.map(privateKey => Keypair.fromSecretKey(base58.decode(privateKey)));
-  walletAccounts.forEach((account, index) => {
-    console.log(`${index} `, account.publicKey);
-  });
-  let instructions = walletAccounts.map((account, index) => {
-    console.log(`${index}: `, BigInt(Math.floor(LAMPORTS_PER_SOL * solAmounts[index])));
-    return SystemProgram.transfer({
-      fromPubkey: fundAccount.publicKey,
-      toPubkey: account.publicKey,
-      lamports: BigInt(Math.floor(LAMPORTS_PER_SOL * solAmounts[index]))
+    const walletAccounts = walletPrivateKeys.map(privateKey => Keypair.fromSecretKey(base58.decode(privateKey)));
+    walletAccounts.forEach((account, index) => {
+      console.log(`${index} `, account.publicKey);
     });
-  })
-  instructions.push(
-    SystemProgram.transfer({
-      fromPubkey: fundAccount.publicKey,
-      toPubkey: getJitoTipWallet(),
-      lamports: JITO_FEE,
+    let instructions = walletAccounts.map((account, index) => {
+      console.log(`${index}: `, BigInt(Math.floor(LAMPORTS_PER_SOL * solAmounts[index])));
+      if (solAmounts[index] > 0) {
+        return SystemProgram.transfer({
+          fromPubkey: fundAccount.publicKey,
+          toPubkey: account.publicKey,
+          lamports: BigInt(Math.floor(LAMPORTS_PER_SOL * solAmounts[index]))
+        });
+      }
     })
-  )
+    if (!instructions.length) {
+      console.log("Not exist valuable transfer instruction");
+      return false;
+    } 
+    instructions.push(
+      SystemProgram.transfer({
+        fromPubkey: fundAccount.publicKey,
+        toPubkey: getJitoTipWallet(),
+        lamports: JITO_FEE,
+      })
+    );
 
-  const chunkInstrunctions = chunk(instructions, 5);
-  console.log(chunkInstrunctions);
+    const chunkInstrunctions = chunk(instructions, 5);
+    console.log(chunkInstrunctions);
 
-  const lastestBlockhash = await connection.getLatestBlockhash();
+    const lastestBlockhash = await connection.getLatestBlockhash();
 
-  const versionedTxs = await Promise.all(chunkInstrunctions.map(async (instructions) => {
-    const tx = new Transaction().add(...instructions);
-    const accounts: any[] = [];
-    tx.instructions.map((ix) => {
-      accounts.push(...ix.keys);
-    })
-    console.log(accounts);
-    const versionedTx = await buildVersionedTx(connection, fundAccount.publicKey, tx, lastestBlockhash);
-    versionedTx.sign([fundAccount]);
-    return versionedTx;
-  }));
+    const versionedTxs = await Promise.all(chunkInstrunctions.map(async (instructions) => {
+      const tx = new Transaction().add(...instructions as TransactionInstruction[]);
+      const accounts: any[] = [];
+      tx.instructions.map((ix) => {
+        accounts.push(...ix.keys);
+      })
+      console.log(accounts);
+      const versionedTx = await buildVersionedTx(connection, fundAccount.publicKey, tx, lastestBlockhash);
+      versionedTx.sign([fundAccount]);
+      return versionedTx;
+    }));
 
-  versionedTxs.map((versionedTx, index) => {
-    console.log(`txsize${index}: `, versionedTx.serialize().length);
-  });
+    versionedTxs.map((versionedTx, index) => {
+      console.log(`txsize${index}: `, versionedTx.serialize().length);
+    });
 
-  const result = await simulateTxBeforeSendBundle(connection, versionedTxs);
-  console.log(result);
-  
+    const result = await simulateTxBeforeSendBundle(connection, versionedTxs);
+    console.log(result);
+    return result;
+  } catch (err) {
+    console.log(`Errors when distributing Sol to wallets, ${err}`);
+    return false;
+  }
 }
