@@ -1,21 +1,63 @@
 import { Request, Response } from "express";
-import { CreateAndBuyInputType, DistributionType } from "../types";
-import { createAndBuyService, distributionService } from "../services/pumpfun.service";
+import { DistributionType } from "../types";
+import { launchTokenService, distributionService } from "../services/pumpfun.service";
 import { Keypair } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { ResponseStatus } from "../core/ApiResponse";
-import { WalletKey, WalletType } from "../cache/keys";
-import { getListRange, getValue } from "../cache/query";
+import { AmountType, Key, NetworkType, WalletKey, WalletType } from "../cache/keys";
+import { getJson, getListRange, getValue } from "../cache/query";
+import { JITO_FEE } from "../config";
+import { TokenMetadataType } from "../pumpfun/types";
 
-export async function createAndBuy(req: Request, res: Response) {
-  const data: CreateAndBuyInputType = {
-    devPrivateKey: req.body.devPrivateKey,
-    buyerPrivateKey: req.body.buyerPrivateKey,
-    amount: Number(req.body.amount)
+export async function launchToken(req: Request, res: Response) {
+  try {
+
+    const devSK = await getValue(WalletKey.DEV) ?? null
+    const sniperSK = await getValue(WalletKey.SNIPER) ?? null
+    const commonSKs = await getListRange<string>(WalletKey.COMMON) ?? [];
+    const mintSK = await getValue(Key.MINT_PRIVATEKEY) ?? null;
+
+    const devSolAmount = Number(await getValue(AmountType.DEV)) ?? 0;
+    const sniperSolAmount = Number(await getValue(AmountType.SNIPER)) ?? 0; 
+    const commonSolAmounts = await getListRange<number>(AmountType.COMMON) ?? [];
+
+    const tokenInfo = await getJson<TokenMetadataType>(Key.TOKEN_METADATA) ?? null;
+    if (!tokenInfo) throw Error("token metadata doesn't exist"); 
+    console.log(tokenInfo);
+    
+    if (!mintSK) throw Error("Mint addresss doen't exist");
+
+    if (!devSolAmount) throw Error("Dev solAmount doesn't exist");
+    if (!devSK) throw Error("Dev wallet doesn't exist");
+
+    if (!sniperSolAmount) throw Error("sniper solAmount doesn't exist");
+    if (!sniperSK) throw Error("sniper wallet doesn't exist");
+
+    const jitoFee =  Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
+    
+    const commonAvailable = commonSolAmounts.filter(value =>  value > 0);
+
+
+    // const result = await launchTokenService(
+    //   {
+    //     devSK,
+    //     sniperSK,
+    //     commonSKs,
+    //     devSolAmount,
+    //     sniperSolAmount,
+    //     commonSolAmounts,
+    //     jitoFee
+    //   }, 
+    //   tokenInfo,
+    //   mintSK,
+    // );
+
+    res.status(ResponseStatus.SUCCESS).send("Token launch is success");
+
+  } catch (err) {
+    console.log(`Errors when launch new token on Pumpfun, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when launch  new token on Pumpfun, ${err}`);
   }
-
-  await createAndBuyService(data);
-  res.status(201).json("Ok");
 }
 
 export async function distributionSol(req: Request, res: Response) {

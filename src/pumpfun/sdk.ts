@@ -1,7 +1,7 @@
 import { Program, Provider } from "@coral-xyz/anchor";
 import { PumpFun, IDL } from "./IDL";
 import { Commitment, Connection, Finality, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction, TransactionInstruction, Version, VersionedTransaction } from "@solana/web3.js";
-import { CreateTokenMetadata, MARKETActionType, PriorityFee } from "./types";
+import { TokenMetadataType, MARKETActionType, PriorityFee } from "./types";
 import { buildTx, calculateWithSlippageBuy, calculateWithSlippageSell, DEFAULT_COMMITMENT, DEFAULT_FINALITY, getRandomInt, sendTx } from "../helper/util";
 import { Agent, setGlobalDispatcher } from "undici";
 import { createAssociatedTokenAccount, createAssociatedTokenAccountInstruction, getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
@@ -39,7 +39,7 @@ export class PumpFunSDK {
     creator: Keypair,
     mint: Keypair,
     buyers: Keypair[],
-    createTokenMetadata: CreateTokenMetadata, // tokenMetadata
+    tokenInfo: TokenMetadataType, // tokenMetadata
     buyAmountsSol: bigint[], 
     slippageBasisPoints: bigint = 300n,
     priorityFees?: PriorityFee, // set unitLimit and unitPrice
@@ -50,16 +50,12 @@ export class PumpFunSDK {
     try {
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
-      // Getting toke metadataUrl from Pumpfun Ipfs
-      let tokenMetadata = await this.createTokenMetadata(createTokenMetadata);
-      console.log(tokenMetadata);
-      
       // Getting createTx
       let createIx = await this.getCreateInstructions(
         creator.publicKey,
-        createTokenMetadata.name,
-        createTokenMetadata.symbol,
-        tokenMetadata.metadataUri,
+        tokenInfo.name,
+        tokenInfo.symbol,
+        tokenInfo.metadataUri,
         mint
       );
 
@@ -134,11 +130,11 @@ export class PumpFunSDK {
     
   }
 
-  async createAndBuy(
+  async launchToken(
     creator: Keypair, // devAccount
     mint: Keypair, 
     buyers: Keypair[], // [devAccount, buyAccount]
-    createTokenMetadata: CreateTokenMetadata, // tokenMetadata
+    tokenInfo: TokenMetadataType,
     buyAmountsSol: bigint[], 
     slippageBasisPoints: bigint = 300n,
     priorityFees?: PriorityFee, // set unitLimit and unitPrice
@@ -148,13 +144,11 @@ export class PumpFunSDK {
     
     let latestBlockhash = await this.connection.getLatestBlockhash();
 
-    let tokenMetadata = await this.createTokenMetadata(createTokenMetadata); // get ipfs url from pumpfun ipfs api
-
     let createTx = await this.getCreateInstructions(
       creator.publicKey,
-      createTokenMetadata.name,
-      createTokenMetadata.symbol,
-      tokenMetadata.metadataUri,
+      tokenInfo.name,
+      tokenInfo.symbol,
+      tokenInfo.metadataUri,
       mint
     );
 
@@ -410,39 +404,39 @@ async buy(
     return transaction;
   }
 
-  async createTokenMetadata(create: CreateTokenMetadata) {
-    let formData = new FormData();
-      formData.append("file", create.file),
-      formData.append("name", create.name),
-      formData.append("symbol", create.symbol),
-      formData.append("description", create.description),
-      formData.append("twitter", create.twitter || ""),
-      formData.append("telegram", create.telegram || ""),
-      formData.append("website", create.website || ""),
-      formData.append("showName", "true");
+  // async createTokenMetadata(create: CreateTokenMetadata) {
+  //   let formData = new FormData();
+  //     formData.append("file", create.file),
+  //     formData.append("name", create.name),
+  //     formData.append("symbol", create.symbol),
+  //     formData.append("description", create.description),
+  //     formData.append("twitter", create.twitter || ""),
+  //     formData.append("telegram", create.telegram || ""),
+  //     formData.append("website", create.website || ""),
+  //     formData.append("showName", "true");
     
-    setGlobalDispatcher(new Agent({ connect: { timeout: 60_000 } }))
-    let request = await fetch("https://pump.fun/api/ipfs", {
-      method: "POST",
-      headers: {
-        "Host": "www.pump.fun",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
-        "Accept": "*/*",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Accept-Encoding": "gzip, deflate, br, zstd",
-        "Referer": "https://www.pump.fun/create",
-        "Origin": "https://www.pump.fun",
-        "Connection": "keep-alive",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-origin",
-        "Priority": "u=1",
-        "TE": "trailers"
-      },
-      body: formData,
-    });
-    return request.json();
-  }
+  //   setGlobalDispatcher(new Agent({ connect: { timeout: 60_000 } }))
+  //   let request = await fetch("https://pump.fun/api/ipfs", {
+  //     method: "POST",
+  //     headers: {
+  //       "Host": "www.pump.fun",
+  //       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
+  //       "Accept": "*/*",
+  //       "Accept-Language": "en-US,en;q=0.5",
+  //       "Accept-Encoding": "gzip, deflate, br, zstd",
+  //       "Referer": "https://www.pump.fun/create",
+  //       "Origin": "https://www.pump.fun",
+  //       "Connection": "keep-alive",
+  //       "Sec-Fetch-Dest": "empty",
+  //       "Sec-Fetch-Mode": "cors",
+  //       "Sec-Fetch-Site": "same-origin",
+  //       "Priority": "u=1",
+  //       "TE": "trailers"
+  //     },
+  //     body: formData,
+  //   });
+  //   return request.json();
+  // }
 
   // create token instructions
   async getCreateInstructions(
