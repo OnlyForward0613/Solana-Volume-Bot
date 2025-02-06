@@ -20,19 +20,19 @@ export default {
     profilePicUrl: Joi.string().optional().uri(),
   }),
   distributionToWallets: Joi.object().keys({
-    sniperAmount: Joi.number().required().greater(0),
-    commonAmounts: Joi.array().required().items(Joi.number().greater(0)),
+    sniperAmount: Joi.number().required().min(0),
+    commonAmounts: Joi.array().required().items(Joi.number().min(0)),
   }),
   generateCommonWallets: Joi.object().keys({
     nums: Joi.string().required().min(1).max(2),
   }),
-  importWallets: Joi.object().keys({
+  setWallets: Joi.object().keys({
     dev: Joi.string().optional().max(100),
     sniper: Joi.string().optional().max(100),
     fund: Joi.string().optional().max(100),
     common: Joi.array().optional().items(Joi.string().max(100))
   }),
-  importFundWallet: Joi.object().keys({
+  setFundWallet: Joi.object().keys({
     fund: Joi.string().required().max(100),
   }),
   
@@ -40,18 +40,18 @@ export default {
   setNetwork: Joi.object().keys({
     RPC_ENDPOINT: Joi.string().optional(),
     RPC_WEBSOCKET_ENDPOINT: Joi.string().optional(),
-    JITO_FEE: Joi.number().optional().greater(0),
+    JITO_FEE: Joi.number().optional().min(0),
   }),
   setBuyAmounts: Joi.object().keys({
-    dev: Joi.number().required().greater(0),
-    sniper: Joi.number().required().greater(0),
-    common: Joi.array().required().items(Joi.number().greater(0)),
+    dev: Joi.number().required().min(0),
+    sniper: Joi.number().required().min(0),
+    common: Joi.array().required().items(Joi.number().min(0)),
   }),
   setSellPercentage: Joi.object().keys({
-    sellPercentage: Joi.array().length(4).required().items(Joi.number().greater(0).less(100)),
+    sellPercentage: Joi.array().length(4).required().items(Joi.number().min(0).less(100)),
   }),
   setSellAmount: Joi.object().keys({
-    sellAmount: Joi.number().required().greater(0),
+    sellAmount: Joi.number().required().min(0),
   }),
   setTokenMetadata: Joi.object().keys({
     name: Joi.string().required(),

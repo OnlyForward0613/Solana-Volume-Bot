@@ -34,6 +34,9 @@ export async function launchToken(req: Request, res: Response) {
     if (!sniperSK) throw Error("sniper wallet doesn't exist");
 
     const jitoFee =  Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
+    
+    const commonAvailable = commonSolAmounts.filter(value =>  value > 0);
+
 
     // const result = await launchTokenService(
     //   {

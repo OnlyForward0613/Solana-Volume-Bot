@@ -79,7 +79,7 @@ export const generateSniperWallet = async (req: Request, res: Response) => {
 }
 
 // import dev, sniper and common wallets
-export const importWallets = async (req: Request, res: Response) => {
+export const setWallets = async (req: Request, res: Response) => {
   const devPrivateKey = req.body.dev ?? "";
   const sniperPrivateKey = req.body.sniper ?? "";
   const commonPrivateKeys = req.body.common ?? [];
@@ -123,7 +123,7 @@ export const importWallets = async (req: Request, res: Response) => {
 }
 
 // import fund wallet
-export const importFundWallet = async (req: Request, res: Response) => {
+export const setFundWallet = async (req: Request, res: Response) => {
   const fundPrivateKey = req.body.fund;
   if (!isValidSolanaPrivateKey([fundPrivateKey])) {
     console.log("Invalid Fund Wallet");
@@ -146,7 +146,7 @@ export const importFundWallet = async (req: Request, res: Response) => {
 }
 
 // export all wallets
-export const exportWallets = async (req: Request, res: Response) => {
+export const getWallets = async (req: Request, res: Response) => {
   try {
     const data = {
       fund: await getValue(WalletKey.FUND) ?? "",
@@ -303,7 +303,7 @@ export const setTokenMetadataInfo = async (req: Request, res: Response) => {
       metadataUri: req.body.metadataUri,
     };
     const mintPrivateKey = req.body.mintPrivateKey;
-    
+
     if (!isValidSolanaPrivateKey([mintPrivateKey])) throw Error("Please insert valid solana address");
 
     await setJson(Key.TOKEN_METADATA, tokenInfo);

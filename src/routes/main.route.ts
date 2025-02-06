@@ -3,7 +3,7 @@ import { Router } from "express";
 // import { insertMovie, Movies, Update, Delete } from "../controller/movie.route";
 import { distributionSol, launchToken } from "../controller/pumpfun.route";
 import { 
-  exportWallets, 
+  getWallets, 
   generateCommonWallets, 
   generateDevWallet, 
   generateSniperWallet, 
@@ -12,8 +12,8 @@ import {
   getSellAmount, 
   getSellPercentage, 
   getTokenMetadataInfo, 
-  importFundWallet, 
-  importWallets, 
+  setFundWallet, 
+  setWallets, 
   setBuyAmounts, 
   setNetwork, 
   setSellAmount, 
@@ -40,9 +40,9 @@ router.get("/generate-wallet/dev", generateDevWallet);
 router.get("/generate-wallet/sniper", generateSniperWallet);
 
 /// Import and Export Wallet info
-router.post("/import-wallets", validator(schema.importWallets), importWallets);
-router.post("/import-wallet-fund", validator(schema.importFundWallet), importFundWallet);
-router.get("/export-wallet", exportWallets);
+router.post("/set-wallets", validator(schema.setWallets), setWallets);
+router.post("/set-wallet-fund", validator(schema.setFundWallet), setFundWallet);
+router.get("/get-wallet", getWallets);
 
 // Network configuration(rpc node, buy and sell options)
 router.post("/set-network", validator(schema.setNetwork), setNetwork);
