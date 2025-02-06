@@ -1,40 +1,41 @@
 import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
-import { CreateAndBuyInputType, DistributionType } from "../types";
+import { LaunchTokenType, DistributionType } from "../types";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { buildVersionedTx, getOrCreateKeypair, getSPLBalance, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
+import { buildVersionedTx, getSPLBalance, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
 import { connection, JITO_FEE, sdk } from "../config";
-import metadata from "../helper/metadata";
-import { openAsBlob } from "fs";
 import { DEFAULT_DECIMALS } from "../pumpfun/sdk";
-import { MARKETActionType } from "../pumpfun/types";
+import { TokenMetadataType, MARKETActionType } from "../pumpfun/types";
 import base58 from "bs58";
 import { getJitoTipWallet } from "../helper/jitoWithAxios";
 import chunk from 'lodash/chunk';
 import { Transaction } from "@solana/web3.js";
 import { TransactionInstruction } from "@solana/web3.js";
 
-const KEYS_FOLDER = __dirname + "/.keys";
-const SLIPPAGE_BASIS_POINTS = 100n;
+const SLIPPAGE_BASIS_POINTS = 200n;
 
 
-export async function createAndBuyService(
-  { 
-    devPrivateKey,
-    buyerPrivateKey,
-    amount 
-  }: CreateAndBuyInputType) {
+export async function launchTokenService(
+  {
+    devSK,
+    sniperSK,
+    commonSKs,
+    devSolAmount,
+    sniperSolAmount,
+    commonSolAmounts,
+    jitoFee
+  }: LaunchTokenType,
+  tokenInfo: TokenMetadataType,
+  mintSK: string,
+) {
 
-  const devAccount = Keypair.fromSecretKey(bs58.decode(devPrivateKey)); 
+  const devAccount = Keypair.fromSecretKey(bs58.decode(devSK)); 
   console.log(`devAccount: ${devAccount.publicKey.toBase58()}`);
 
-  const buyAccount = Keypair.fromSecretKey(bs58.decode(buyerPrivateKey));
-  console.log(`buyAccoount: ${buyAccount.publicKey.toBase58()}`);
+  const sniperAccount = Keypair.fromSecretKey(bs58.decode(sniperSK));
+  console.log(`sniperAccount: ${sniperAccount.publicKey.toBase58()}`);
 
-  const mint = getOrCreateKeypair(KEYS_FOLDER, "mint");
-  console.log(`mintAccount: ${mint.publicKey.toBase58()}`);
-
-  // let globalAccount = await sdk.getGlobalAccount();
-  // console.log(globalAccount);
+  const mint = Keypair.fromSecretKey(bs58.decode(mintSK));
+  console.log(`mint: ${mint.publicKey.toBase58()}`);
 
   await printSOLBalance(
     connection,
@@ -53,58 +54,16 @@ export async function createAndBuyService(
 
   let boundingCurveAccount = await sdk.getBondingCurveAccount(mint.publicKey);
   console.log(boundingCurveAccount);
-  // if (!boundingCurveAccount) {
-  //   let tokenMetadata = {
-  //     name: metadata.name,
-  //     symbol: metadata.symbol,
-  //     description: metadata.description,
-  //     showName: metadata.showName,
-  //     createOn: metadata.createdOn,
-  //     twitter: metadata.twitter,
-  //     telegram: metadata.telegram,
-  //     website: metadata.website,
-  //     file: await openAsBlob("./upload/earth.png"),
-  //   };
 
-  //   await sdk.createAndBuyJitoClient(
-  //     devAccount,
-  //     mint,
-  //     [devAccount, buyAccount], // buyers
-  //     tokenMetadata,
-  //     [BigInt(0.01 * LAMPORTS_PER_SOL), BigInt(0.02 * LAMPORTS_PER_SOL)],
-  //     SLIPPAGE_BASIS_POINTS,
-  //   );
-
-  //   if (bundleResult) {
-  //     console.log("Create and buy bundle Success");
-  //   } else {
-  //     console.log("Create and buy bundle failed");
-  //   }
-  // }
   if (!boundingCurveAccount) {
-    let tokenMetadata = {
-      name: metadata.name,
-      symbol: metadata.symbol,
-      description: metadata.description,
-      showName: metadata.showName,
-      createOn: metadata.createdOn,
-      twitter: metadata.twitter,
-      telegram: metadata.telegram,
-      website: metadata.website,
-      file: await openAsBlob("./upload/earth.png"),
-    };
 
-    let createResults = await sdk.createAndBuy(
+    let createResults = await sdk.launchToken(
       devAccount,
       mint,
-      [devAccount, buyAccount], // buyers
-      tokenMetadata,
+      [devAccount, sniperAccount], // buyers
+      tokenInfo,
       [BigInt(0.06 * LAMPORTS_PER_SOL), BigInt(0.07 * LAMPORTS_PER_SOL)],
       SLIPPAGE_BASIS_POINTS,
-      // {
-      //   unitLimit: 1000_000,
-      //   unitPrice: 10,
-      // },
     );
 
     if (createResults && createResults.confirmed) {
@@ -121,7 +80,7 @@ export async function createAndBuyService(
     let buyCurrentSPLBalance = await getSPLBalance(
       connection,
       mint.publicKey,
-      buyAccount.publicKey
+      sniperAccount.publicKey
     );
     let devCurrentSPLBalance = await getSPLBalance(
       connection,
@@ -137,14 +96,10 @@ export async function createAndBuyService(
       const results = await sdk.optionalBuyAndSell(
         devAccount, // payer
         [MARKETActionType.SELL, MARKETActionType.SELL], // actions
-        [devAccount, buyAccount], // accounts
+        [devAccount, sniperAccount], // accounts
         mint.publicKey, // mint
         [devBalance, buyBalance], // one is buy, other is sell
         [SLIPPAGE_BASIS_POINTS, SLIPPAGE_BASIS_POINTS],
-        // {
-        //   unitLimit: 100_000,
-        //   unitPrice: 7,
-        // },
       )
       if (results && results.confirmed) {
         console.log(results.jitoTxsignature);
@@ -158,7 +113,8 @@ export const distributionService = async (
     fundWalletPrivateKey,
     walletPrivateKeys,
     solAmounts
-  }: DistributionType) => {
+  }: DistributionType,
+) => {
 
   try {
     const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletPrivateKey));

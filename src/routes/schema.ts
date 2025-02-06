@@ -56,10 +56,7 @@ export default {
   setTokenMetadata: Joi.object().keys({
     name: Joi.string().required(),
     symbol: Joi.string().required(),
-    description: Joi.string().required().min(3).max(200),
-    website: Joi.string().optional().uri(),
-    telegram: Joi.string().optional().uri(),
-    twitter: Joi.string().optional().uri(),
-    file: Joi.array().required().items(Joi.number()),
+    metadataUri: Joi.string().required().uri(),
+    mintPrivateKey: Joi.string().required(),
   }),
 };

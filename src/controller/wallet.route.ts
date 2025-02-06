@@ -7,7 +7,7 @@ import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
 import { MAX_COMMON_WALLETS_NUMS} from "../config";
 import { createNewPrivateKeyBasedonAssets, isValidSolanaPrivateKey } from "../helper/util";
 import { ResponseStatus } from "../core/ApiResponse";
-import { CreateTokenMetadata } from "../pumpfun/types";
+import { TokenMetadataType } from "../pumpfun/types";
 
 
 export const generateCommonWallets = async (req: Request, res: Response) => {
@@ -297,21 +297,29 @@ export const getSellAmount = async (req: Request, res: Response) => {
 // set tokenMetadata info
 export const setTokenMetadataInfo = async (req: Request, res: Response) => {
   try {
-    const tokenInfo: CreateTokenMetadata = req.body
-    if (tokenInfo) {
-      await setJson(Key.TOKEN_METADATA, tokenInfo);
-    }
+    const tokenInfo: TokenMetadataType = {
+      name: req.body.name,
+      symbol: req.body.symbol,
+      metadataUri: req.body.metadataUri,
+    };
+    const mintPrivateKey = req.body.mintPrivateKey;
+    
+    if (!isValidSolanaPrivateKey([mintPrivateKey])) throw Error("Please insert valid solana address");
+
+    await setJson(Key.TOKEN_METADATA, tokenInfo);
+    await setValue(Key.MINT_PRIVATEKEY, mintPrivateKey);
+
     res.status(ResponseStatus.SUCCESS).send("Setting tokenMetadata is OK");
   } catch (err) {
     console.log(`Errors when managing token info, ${err}`);
-    res.status(ResponseStatus.NOT_FOUND).send("Errors when managing token info");
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when managing token info, ${err}`);
   } 
 }
 
 // get createTokenMetadata info
 export const getTokenMetadataInfo = async (req: Request, res: Response) => {
   try {
-    const data = await getJson(Key.TOKEN_METADATA);
+    const data = await getJson<TokenMetadataType>(Key.TOKEN_METADATA);
     console.log(data);
     res.status(ResponseStatus.SUCCESS).send(data);
   } catch (err) {

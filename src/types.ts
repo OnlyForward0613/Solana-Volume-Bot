@@ -1,13 +1,18 @@
 
-export type CreateAndBuyInputType = {
-  devPrivateKey: string,
-  buyerPrivateKey: string,
-  amount: number
-}
 export type DistributionType = {
   fundWalletPrivateKey: string
   walletPrivateKeys: string[],
   solAmounts: number[]
+}
+
+export type LaunchTokenType = {
+  devSK : string,
+  sniperSK: string,
+  commonSKs: string[],
+  devSolAmount: number,
+  sniperSolAmount: number,
+  commonSolAmounts: number[],
+  jitoFee: number
 }
 
 export interface Wallets {

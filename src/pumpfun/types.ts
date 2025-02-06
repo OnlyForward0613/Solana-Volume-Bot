@@ -1,24 +1,11 @@
 import { PublicKey, VersionedTransactionResponse } from "@solana/web3.js";
 
-export type CreateTokenMetadata = {
+export type TokenMetadataType = {
   name: string;
   symbol: string;
-  description: string;
-  file: Blob;
-  twitter?: string;
-  telegram?: string;
-  website?: string;
+  metadataUri: string;
 };
 
-export type TokenMetadata = {
-  name: string;
-  symbol: string;
-  description: string;
-  image: string;
-  showName: boolean;
-  createdOn: string;
-  twitter: string;
-};
 
 export enum MARKETActionType {
   BUY = 'buy',

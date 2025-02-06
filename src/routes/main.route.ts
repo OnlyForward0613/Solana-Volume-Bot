@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 // import { insertMovie, Movies, Update, Delete } from "../controller/movie.route";
-import { createAndBuy, distributionSol } from "../controller/pumpfun.route";
+import { distributionSol, launchToken } from "../controller/pumpfun.route";
 import { 
   exportWallets, 
   generateCommonWallets, 
@@ -31,7 +31,7 @@ const router = Router();
 // router.delete("/deleteMovie", Delete);
 
 // main function
-router.post("/createAndBuy", createAndBuy);
+router.get("/launch-token", launchToken);
 router.post("/distributionSol", validator(schema.distributionToWallets), distributionSol);
 
 // Generate wallets

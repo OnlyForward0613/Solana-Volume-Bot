@@ -1,6 +1,7 @@
 export enum Key {
   BLOGS_LATEST = 'BLOGS_LATEST',
   TOKEN_METADATA = 'TOKEN_METADATA',
+  MINT_PRIVATEKEY = 'MINT_PRIVATEKEY',
 }
 
 export enum DynamicKey {
