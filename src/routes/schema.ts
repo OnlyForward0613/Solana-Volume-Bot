@@ -60,6 +60,6 @@ export default {
     website: Joi.string().optional().uri(),
     telegram: Joi.string().optional().uri(),
     twitter: Joi.string().optional().uri(),
-    file: Joi.string().required().uri(),
+    file: Joi.array().required().items(Joi.number()),
   }),
 };

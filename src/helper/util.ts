@@ -88,24 +88,29 @@ export async function buildTx(
   priorityFees?: PriorityFee,
   commitment: Commitment = DEFAULT_COMMITMENT,
   finality: Finality = DEFAULT_FINALITY
-): Promise<VersionedTransaction> {
-  let newTx = new Transaction();
+): Promise<VersionedTransaction | null> {
+  try {
+    let newTx = new Transaction();
 
-  if (priorityFees) {
-    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-      units: priorityFees.unitLimit,
-    });
+    if (priorityFees) {
+      const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+        units: priorityFees.unitLimit,
+      });
 
-    const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
-      microLamports: priorityFees.unitPrice,
-    });
-    newTx.add(modifyComputeUnits);
-    newTx.add(addPriorityFee);
+      const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: priorityFees.unitPrice,
+      });
+      newTx.add(modifyComputeUnits);
+      newTx.add(addPriorityFee);
+    }
+    newTx.add(tx);
+    let versionedTx = await buildVersionedTx(connection, payer, newTx, latestBlockhash, commitment);
+    versionedTx.sign(signers);
+    return versionedTx;
+  } catch (err) {
+    console.log(`There are some errors in getting versioned transaction, ${err}`);
+    return null;
   }
-  newTx.add(tx);
-  let versionedTx = await buildVersionedTx(connection, payer, newTx, latestBlockhash, commitment);
-  versionedTx.sign(signers);
-  return versionedTx;
 }
 
 export const buildVersionedTx = async (
