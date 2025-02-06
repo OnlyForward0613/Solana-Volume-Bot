@@ -28,46 +28,46 @@ export const getJitoTipWallet = () => {
 
 export const jitoWithAxios = async (
   transactions: VersionedTransaction[], 
-  payer: Keypair,
   latestBlockhash: BlockhashWithExpiryBlockHeight
 ) => {
 
-  console.log('Starting Jito transaction execution...');
+  console.log(`Starting Jito transaction execution... transaction count: ${transactions.length}`);
 
-  const jitoFeeWallet = getJitoTipWallet();
-  console.log(`Selected Jito fee wallet: ${jitoFeeWallet.toBase58()}`);
+  // const jitoFeeWallet = getJitoTipWallet();
+  // console.log(`Selected Jito fee wallet: ${jitoFeeWallet.toBase58()}`);
 
   try {
-    console.log(`Calculated fee: ${JITO_FEE / LAMPORTS_PER_SOL} sol`);
-    const jitTipTxFeeMessage = new TransactionMessage({
-      payerKey: payer.publicKey,
-      recentBlockhash: latestBlockhash.blockhash,
-      instructions: [
-        SystemProgram.transfer({
-          fromPubkey: payer.publicKey,
-          toPubkey: jitoFeeWallet,
-          lamports: JITO_FEE,
-        }),
-      ],
-    }).compileToV0Message();
+    // console.log(`Calculated fee: ${JITO_FEE / LAMPORTS_PER_SOL} sol`);
+    // const jitTipTxFeeMessage = new TransactionMessage({
+    //   payerKey: payer.publicKey,
+    //   recentBlockhash: latestBlockhash.blockhash,
+    //   instructions: [
+    //     SystemProgram.transfer({
+    //       fromPubkey: payer.publicKey,
+    //       toPubkey: jitoFeeWallet,
+    //       lamports: JITO_FEE,
+    //     }),
+    //   ],
+    // }).compileToV0Message();
 
-    const jitoFeeTx = new VersionedTransaction(jitTipTxFeeMessage);
-    jitoFeeTx.sign([payer]);
+    // const jitoFeeTx = new VersionedTransaction(jitTipTxFeeMessage);
+    // jitoFeeTx.sign([payer]);
 
 
-    const jitoTxsignature = base58.encode(jitoFeeTx.signatures[0]);
+    // const jitoTxsignature = base58.encode(jitoFeeTx.signatures[0]);
 
-    // Serialize the transactions once here
-    const serializedjitoFeeTx = base58.encode(jitoFeeTx.serialize());
-    const serializedTransactions = [serializedjitoFeeTx];
+    // // Serialize the transactions once here
+    // const serializedjitoFeeTx = base58.encode(jitoFeeTx.serialize());
+    const jitoTxsignature = base58.encode(transactions[0].signatures[0]);
+    const serializedTransactions: string[] = [];
     for (let i = 0; i < transactions.length; i++) {
       const serializedTransaction = base58.encode(transactions[i].serialize());
       serializedTransactions.push(serializedTransaction);
     }
 
     // simulation before sending bundle
-    const signatures = [jitoTxsignature];
-    const txSizes = [jitoFeeTx.serialize().length];
+    const signatures = [];
+    const txSizes = [];
     
     for (let i = 0; i < transactions.length; i++) {
       signatures.push(base58.encode(transactions[i].signatures[0]));
@@ -80,12 +80,12 @@ export const jitoWithAxios = async (
     console.log("signatures");
     console.log(signatures);
 
-    const simultationResult: any = await simulateTxBeforeSendBundle(connection, [jitoFeeTx, ...transactions]);
-    if (!simultationResult) {
-      console.log("simulation error. plz try again");
-      return { confirmed: false };
-    }
-    console.log("simulation success");
+    // const simultationResult: any = await simulateTxBeforeSendBundle(connection, [...transactions]);
+    // if (!simultationResult) {
+    //   console.log("simulation error. plz try again");
+    //   return { confirmed: false };
+    // }
+    // console.log("simulation success");
     // return { confirmed: true };
 
     const endpoints = [

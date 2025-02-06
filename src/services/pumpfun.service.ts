@@ -1,4 +1,4 @@
-import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
 import { CreateAndBuyInputType, DistributionType } from "../types";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { buildVersionedTx, getOrCreateKeypair, getSPLBalance, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
@@ -8,7 +8,6 @@ import { openAsBlob } from "fs";
 import { DEFAULT_DECIMALS } from "../pumpfun/sdk";
 import { MARKETActionType } from "../pumpfun/types";
 import base58 from "bs58";
-import { SystemProgram } from "@solana/web3.js";
 import { getJitoTipWallet } from "../helper/jitoWithAxios";
 import chunk from 'lodash/chunk';
 import { Transaction } from "@solana/web3.js";
@@ -16,6 +15,7 @@ import { TransactionInstruction } from "@solana/web3.js";
 
 const KEYS_FOLDER = __dirname + "/.keys";
 const SLIPPAGE_BASIS_POINTS = 100n;
+
 
 export async function createAndBuyService(
   { 
@@ -53,6 +53,34 @@ export async function createAndBuyService(
 
   let boundingCurveAccount = await sdk.getBondingCurveAccount(mint.publicKey);
   console.log(boundingCurveAccount);
+  // if (!boundingCurveAccount) {
+  //   let tokenMetadata = {
+  //     name: metadata.name,
+  //     symbol: metadata.symbol,
+  //     description: metadata.description,
+  //     showName: metadata.showName,
+  //     createOn: metadata.createdOn,
+  //     twitter: metadata.twitter,
+  //     telegram: metadata.telegram,
+  //     website: metadata.website,
+  //     file: await openAsBlob("./upload/earth.png"),
+  //   };
+
+  //   await sdk.createAndBuyJitoClient(
+  //     devAccount,
+  //     mint,
+  //     [devAccount, buyAccount], // buyers
+  //     tokenMetadata,
+  //     [BigInt(0.01 * LAMPORTS_PER_SOL), BigInt(0.02 * LAMPORTS_PER_SOL)],
+  //     SLIPPAGE_BASIS_POINTS,
+  //   );
+
+  //   if (bundleResult) {
+  //     console.log("Create and buy bundle Success");
+  //   } else {
+  //     console.log("Create and buy bundle failed");
+  //   }
+  // }
   if (!boundingCurveAccount) {
     let tokenMetadata = {
       name: metadata.name,
@@ -63,15 +91,15 @@ export async function createAndBuyService(
       twitter: metadata.twitter,
       telegram: metadata.telegram,
       website: metadata.website,
-      file: await openAsBlob("./upload/bolt.jpg"),
+      file: await openAsBlob("./upload/earth.png"),
     };
 
     let createResults = await sdk.createAndBuy(
       devAccount,
       mint,
-      [buyAccount], // buyers
+      [devAccount, buyAccount], // buyers
       tokenMetadata,
-      [BigInt(0.02 * LAMPORTS_PER_SOL)],
+      [BigInt(0.06 * LAMPORTS_PER_SOL), BigInt(0.07 * LAMPORTS_PER_SOL)],
       SLIPPAGE_BASIS_POINTS,
       // {
       //   unitLimit: 1000_000,
@@ -80,53 +108,16 @@ export async function createAndBuyService(
     );
 
     if (createResults && createResults.confirmed) {
-      console.log("Success:", `https://pump.fun/${mint.publicKey.toBase58()}`);
+      console.log("Success creation:", `https://pump.fun/${mint.publicKey.toBase58()}`);
       console.log(createResults.jitoTxsignature);
-      boundingCurveAccount = await sdk.getBondingCurveAccount(mint.publicKey);
-      console.log("Bonding curve after create and buy", boundingCurveAccount);
-      printSPLBalance(connection, mint.publicKey, devAccount.publicKey);
     }
   } else {
-
-    let tokenMetadata = {
-      name: metadata.name,
-      symbol: metadata.symbol,
-      description: metadata.description,
-      showName: metadata.showName,
-      createOn: metadata.createdOn,
-      twitter: metadata.twitter,
-      telegram: metadata.telegram,
-      website: metadata.website,
-      file: await openAsBlob("./upload/bolt.jpg"),
-    };
-
-    let createResults = await sdk.createAndBuy(
-      devAccount,
-      mint,
-      [devAccount, buyAccount], // buyers
-      tokenMetadata,
-      [BigInt(0.05 * LAMPORTS_PER_SOL), BigInt(0.05 * LAMPORTS_PER_SOL)],
-      SLIPPAGE_BASIS_POINTS,
-      // {
-      //   unitLimit: 1000_000,
-      //   unitPrice: 7,
-      // },
-    );
-
-    if (createResults && createResults.confirmed) {
-      console.log("Success:", `https://pump.fun/${mint.publicKey.toBase58()}`);
-      console.log(createResults.jitoTxsignature);
-      // boundingCurveAccount = await sdk.getBondingCurveAccount(mint.publicKey);
-      // console.log("Bonding curve after create and buy", boundingCurveAccount);
-      printSPLBalance(connection, mint.publicKey, devAccount.publicKey);
-    }
-    // console.log(boundingCurveAccount);
-    // console.log("Success:", `https://pump.fun/${mint.publicKey.toBase58()}`);
-    // printSPLBalance(connection, mint.publicKey, devAccount.publicKey);
+    console.log(boundingCurveAccount);
+    console.log("Success:", `https://pump.fun/${mint.publicKey.toBase58()}`);
+    printSPLBalance(connection, mint.publicKey, devAccount.publicKey);
   }
 
   // optional buy and sell
-  if (boundingCurveAccount) {
     let buyCurrentSPLBalance = await getSPLBalance(
       connection,
       mint.publicKey,
@@ -139,16 +130,16 @@ export async function createAndBuyService(
     );
    
     console.log(`devCurrentSPLBalance: ${buyCurrentSPLBalance}`);
-    if (devCurrentSPLBalance) {
-      await sleep(500); // await 500ms
+    if (devCurrentSPLBalance && buyCurrentSPLBalance) {
+      // await sleep(500); // await 500ms
       const devBalance = BigInt(Math.floor(devCurrentSPLBalance * Math.pow(10, DEFAULT_DECIMALS)));
-      // const buyBalance = BigInt(Math.floor(buyCurrentSPLBalance * Math.pow(10, DEFAULT_DECIMALS)));
+      const buyBalance = BigInt(Math.floor(buyCurrentSPLBalance * Math.pow(10, DEFAULT_DECIMALS)));
       const results = await sdk.optionalBuyAndSell(
         devAccount, // payer
-        [MARKETActionType.SELL], // actions
+        [MARKETActionType.SELL, MARKETActionType.SELL], // actions
         [devAccount, buyAccount], // accounts
         mint.publicKey, // mint
-        [devBalance], // one is buy, other is sell
+        [devBalance, buyBalance], // one is buy, other is sell
         [SLIPPAGE_BASIS_POINTS, SLIPPAGE_BASIS_POINTS],
         // {
         //   unitLimit: 100_000,
@@ -160,7 +151,6 @@ export async function createAndBuyService(
         printSPLBalance(connection, mint.publicKey, devAccount.publicKey);
       }
     }
-  }
 }
 
 export const distributionService = async (
