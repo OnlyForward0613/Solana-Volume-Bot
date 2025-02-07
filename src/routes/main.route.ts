@@ -22,7 +22,8 @@ import {
   removeFundWallet,
   removeDevWallet,
   removeSniperWallet,
-  removeCommonWallet
+  removeCommonWallet,
+  generateMintWallet
 } from "../controller/wallet.route";
 import schema from "./schema";
 import validator, { ValidationSource } from "../helper/validator";
@@ -45,6 +46,7 @@ router.get("/gather-fund", gatherFund);
 router.get("/generate-wallet/common", validator(schema.generateCommonWallets, ValidationSource.QUERY), generateCommonWallets);
 router.get("/generate-wallet/dev", generateDevWallet);
 router.get("/generate-wallet/sniper", generateSniperWallet);
+router.get("/generate-wallet/mint", generateMintWallet);
 
 /// Import and Export Wallet info
 router.post("/set-wallets", validator(schema.setWallets), setWallets);

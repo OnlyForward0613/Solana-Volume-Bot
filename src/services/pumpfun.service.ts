@@ -98,19 +98,18 @@ export const distributionService = async (
   try {
     const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletSK));
 
-    console.log(fundAccount.publicKey);
-
     const walletAccounts = walletSKs.map(privateKey => Keypair.fromSecretKey(base58.decode(privateKey)));
     
-    let ixs = walletAccounts.map((account, index) => {
+    let ixs: TransactionInstruction[] = [];
+    await Promise.all(walletAccounts.map((account, index) => {
       if (solAmounts[index] > 0) {
-        return SystemProgram.transfer({
+        ixs.push(SystemProgram.transfer({
           fromPubkey: fundAccount.publicKey,
           toPubkey: account.publicKey,
           lamports: BigInt(Math.floor(LAMPORTS_PER_SOL * solAmounts[index]))
-        });
+        }));
       }
-    })
+    }));
     if (!ixs.length) {
       console.log("Not exist valuable transfer instruction");
       return null;
@@ -192,7 +191,6 @@ export const gatherService = async (
       if (solAmount > 0n) {
         solAmounts.push(solAmount);
         walletAccounts.push(key);
-        return key;
       }
     }));
 
@@ -206,6 +204,7 @@ export const gatherService = async (
         lamports: jitoFee,
       })
     );
+    
     await Promise.all(walletAccounts.map((account, index) => {
       ixs.push(SystemProgram.transfer({
         fromPubkey: fundAccount.publicKey,
