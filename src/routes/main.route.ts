@@ -74,6 +74,6 @@ router.get("/get-token-metadata", getTokenMetadataInfo);
 router.delete("/remove-wallet/fund", removeFundWallet);
 router.delete("/remove-wallet/dev", removeDevWallet);
 router.delete("/remove-wallet/sniper", removeSniperWallet);
-router.delete("/remove-wallet/common", validator(schema.removeCommonWallet), removeCommonWallet);
+router.post("/remove-wallet/common", validator(schema.removeCommonWallet), removeCommonWallet);
 
 export default router;
