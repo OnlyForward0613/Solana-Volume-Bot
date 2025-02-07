@@ -1,8 +1,8 @@
 import { Keypair } from "@solana/web3.js"
 
 export type DistributionType = {
-  fundWalletPrivateKey: string
-  walletPrivateKeys: string[],
+  fundWalletSK: string
+  walletSKs: string[],
   solAmounts: number[]
 }
 

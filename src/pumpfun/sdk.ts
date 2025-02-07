@@ -204,7 +204,7 @@ export class PumpFunSDK {
     let result
     let count = 0;
     if (createVersionedTx) {
-      while(1) {
+      while (true) {
         result = await jitoWithAxios([createVersionedTx, ...buyTxs], latestBlockhash);
         if (result.confirmed) break;
         count++;
@@ -270,14 +270,14 @@ export class PumpFunSDK {
 
       let result
       let count = 0;
-      while(1) {
+      while (true) {
         result = await jitoWithAxios(bundleTxs, latestBlockhash);
         if (result.confirmed) break;
         count++;
         if (count > 3) throw Error("Bundle failed");
       }
       return result;
-      
+
     } catch (err) {
       console.log("Errors when selling tokens in one wallet")
     }
@@ -353,7 +353,7 @@ export class PumpFunSDK {
 
       let result
       let count = 0;
-      while(1) {
+      while (true) {
         result = await jitoWithAxios(bundleTxs, latestBlockhash);
         if (result.confirmed) break;
         count++;
@@ -455,7 +455,7 @@ export class PumpFunSDK {
 
       let result
       let count = 0;
-      while(1) {
+      while (true) {
         result = await jitoWithAxios(bundleTxs, latestBlockhash);
         if (result.confirmed) break;
         count++;

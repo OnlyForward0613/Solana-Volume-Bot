@@ -1,11 +1,11 @@
 import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
 import { LaunchTokenType, DistributionType } from "../types";
-import { buildVersionedTx, getSPLBalance, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
+import { buildTx, buildVersionedTx, getSPLBalance, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
 import { JITO_FEE, sdk } from "../config";
 import { DEFAULT_DECIMALS } from "../pumpfun/sdk";
 import { TokenMetadataType, MARKETActionType } from "../pumpfun/types";
 import base58 from "bs58";
-import { getJitoTipWallet } from "../helper/jitoWithAxios";
+import { getJitoTipWallet, jitoWithAxios } from "../helper/jitoWithAxios";
 import chunk from 'lodash/chunk';
 import { Transaction } from "@solana/web3.js";
 import { TransactionInstruction } from "@solana/web3.js";
@@ -74,22 +74,22 @@ export async function launchTokenService(
 
 export const distributionService = async (
   { 
-    fundWalletPrivateKey,
-    walletPrivateKeys,
+    fundWalletSK,
+    walletSKs,
     solAmounts
   }: DistributionType,
   connection: Connection,
 ) => {
 
   try {
-    const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletPrivateKey));
+    const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletSK));
 
     console.log(fundAccount.publicKey);
-    console.log(walletPrivateKeys);
+    console.log(walletSKs);
     console.log(solAmounts);
     printSOLBalance(connection, fundAccount.publicKey, "Sol info");
 
-    const walletAccounts = walletPrivateKeys.map(privateKey => Keypair.fromSecretKey(base58.decode(privateKey)));
+    const walletAccounts = walletSKs.map(privateKey => Keypair.fromSecretKey(base58.decode(privateKey)));
     walletAccounts.forEach((account, index) => {
       console.log(`${index} `, account.publicKey);
     });
@@ -118,27 +118,138 @@ export const distributionService = async (
     const chunkInstrunctions = chunk(ixs, 5);
     console.log(chunkInstrunctions);
 
-    const lastestBlockhash = await connection.getLatestBlockhash();
+    const latestBlockhash = await connection.getLatestBlockhash();
 
-    const versionedTxs = await Promise.all(chunkInstrunctions.map(async (instructions) => {
+    const bundleTxs = await Promise.all(chunkInstrunctions.map(async (instructions) => {
       const tx = new Transaction().add(...instructions as TransactionInstruction[]);
       const accounts: any[] = [];
       tx.instructions.map((ix) => {
         accounts.push(...ix.keys);
       })
       console.log(accounts);
-      const versionedTx = await buildVersionedTx(connection, fundAccount.publicKey, tx, lastestBlockhash);
-      versionedTx.sign([fundAccount]);
+      const versionedTx = await buildTx(
+        connection,
+        tx,
+        fundAccount.publicKey,
+        [fundAccount],
+        latestBlockhash
+      )
+      if (!versionedTx) throw Error("Errors when distributing fund to wallets");
       return versionedTx;
     }));
 
-    versionedTxs.map((versionedTx, index) => {
-      console.log(`txsize${index}: `, versionedTx.serialize().length);
+    bundleTxs.map((bundle, index) => {
+      console.log(`txsize${index}: `, bundle.serialize().length);
     });
 
-    const result = await simulateTxBeforeSendBundle(connection, versionedTxs);
-    console.log(result);
+    const simulateResult = await simulateTxBeforeSendBundle(connection, bundleTxs);
+    console.log(simulateResult);
+    if (!simulateResult) throw Error("Simulation errors when distributiong fund  to wallets");
+    return simulateResult;
+
+    let result;
+    let count = 0;
+    while (true) {
+      result = await jitoWithAxios(bundleTxs, latestBlockhash);
+      if (result.confirmed) break;
+      count++;
+      if (count > 3) throw Error("Bundle failed");
+    }
     return result;
+
+  } catch (err) {
+    console.log(`Errors when distributing Sol to wallets, ${err}`);
+    return false;
+  }
+}
+
+export const gatherService = async (
+  { 
+    fundWalletSK,
+    walletSKs,
+  }: DistributionType,
+  connection: Connection,
+) => {
+
+  try {
+    const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletSK));
+    console.log(fundAccount.publicKey);
+    console.log(fundWalletSK);
+    printSOLBalance(connection, fundAccount.publicKey, "Sol info");
+
+    let solAmounts: bigint[] = [];
+    const walletAccounts: Keypair[] = []; 
+    await Promise.all(walletSKs.map(async (SK) => {
+      const key = Keypair.fromSecretKey(base58.decode(SK));
+      const solAmount = BigInt(await connection.getBalance(key.publicKey));
+      if (solAmount > 0n) {
+        solAmounts.push(solAmount);
+        walletAccounts.push(key);
+        return key;
+      }
+    }));
+
+    if (!walletAccounts.length) throw Error("All wallet don't have any fund");
+
+    let ixs: TransactionInstruction[] = [];
+    ixs.push(
+      SystemProgram.transfer({
+        fromPubkey: fundAccount.publicKey,
+        toPubkey: getJitoTipWallet(),
+        lamports: JITO_FEE,
+      })
+    );
+    await Promise.all(walletAccounts.map((account, index) => {
+      ixs.push(SystemProgram.transfer({
+        fromPubkey: fundAccount.publicKey,
+        toPubkey: account.publicKey,
+        lamports: solAmounts[index]
+      }));
+    }))
+    
+
+    const chunkInstrunctions = chunk(ixs, 5);
+    console.log(chunkInstrunctions);
+
+    const latestBlockhash = await connection.getLatestBlockhash();
+
+    const bundleTxs = await Promise.all(chunkInstrunctions.map(async (instructions) => {
+      const tx = new Transaction().add(...instructions as TransactionInstruction[]);
+      const accounts: any[] = [];
+      tx.instructions.map((ix) => {
+        accounts.push(...ix.keys);
+      })
+      console.log(accounts);
+      const versionedTx = await buildTx(
+        connection,
+        tx,
+        fundAccount.publicKey,
+        [fundAccount],
+        latestBlockhash
+      )
+      if (!versionedTx) throw Error("Errors when distributing fund to wallets");
+      return versionedTx;
+    }));
+
+    bundleTxs.map((bundle, index) => {
+      console.log(`txsize${index}: `, bundle.serialize().length);
+    });
+
+    const simulateResult = await simulateTxBeforeSendBundle(connection, bundleTxs);
+    console.log(simulateResult);
+    if (!simulateResult) throw Error("Simulation errors when distributiong fund  to wallets");
+    return simulateResult;
+
+    let result;
+    let count = 0;
+    while (true) {
+      result = await jitoWithAxios(bundleTxs, latestBlockhash);
+      if (result.confirmed) break;
+      count++;
+      if (count > 3) throw Error("Bundle failed");
+    }
+    return result;
+
   } catch (err) {
     console.log(`Errors when distributing Sol to wallets, ${err}`);
     return false;
