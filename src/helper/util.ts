@@ -5,7 +5,7 @@ import fs from "fs";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import base58 from "bs58";
 import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
-import { Key } from "../cache/keys";
+import { connection } from "../config";
 
 export const DEFAULT_COMMITMENT: Commitment = "confirmed";
 export const DEFAULT_FINALITY: Finality = "finalized";
@@ -22,7 +22,6 @@ export async function printSOLBalance(
     `SOL`
   );
 }
-
 
 
 export const printSPLBalance = async (
@@ -273,6 +272,30 @@ export const simulateTxBeforeSendBundle = async (
   //   }
   // }
   // return true;
+}
+
+export const isFundSufficent = async (
+  account: PublicKey,
+  solAmount: bigint,
+  connection: Connection
+) => {
+  let count = 0;
+  while (1) {
+    try {
+      if (BigInt(await connection.getBalance(account)) != solAmount) {
+        return false;
+      }
+      break;
+    } catch (err) {
+      console.log(`Errors when getting sol balance of account, ${err}`);
+      count++;
+      if (count >= 3) {
+        console.log("RPC Error or Invalid solana address");
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 export const calculateWithSlippageSell = (
