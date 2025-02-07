@@ -40,8 +40,8 @@ export const sdk = new PumpFunSDK(anchorProvider);
 
 // redis server setting
 export const redis = {
-  host: process.env.REDIS_HOST || '',
-  port: parseInt(process.env.REDIS_PORT || '0'),
+  host: process.env.REDIS_HOST || "localhsot",
+  port: parseInt(process.env.REDIS_PORT || "6379"),
   password: process.env.REDIS_PASSWORD || '',
 };
 

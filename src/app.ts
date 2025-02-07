@@ -3,11 +3,17 @@ import express, { Request, Response } from "express";
 // import { db } from "./dbConnection";
 import './cache';
 import router from "./routes/main.route";
+import cors from 'cors';
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(cors({
+  origin: 'http://localhost:3000', // Allow only this origin
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Allowed HTTP methods
+  credentials: true // Allow credentials (cookies, authorization headers, etc.)
+}))
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req: Request, res: Response) => {
@@ -29,4 +35,6 @@ app
     console.log(`server running on port : ${port}`);
   })
   .on('error', (e) => console.error(e));
+
+
 

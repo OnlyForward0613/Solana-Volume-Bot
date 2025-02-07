@@ -1,4 +1,6 @@
 import { struct, bool, u64, Layout } from "@coral-xyz/borsh";
+import { DEFAULT_POW } from "./sdk";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 
 export class BondingCurveAccount {
   public discriminator: bigint;
@@ -10,13 +12,13 @@ export class BondingCurveAccount {
   public complete: boolean;
 
   constructor(
-    discriminator: bigint,
-    virtualTokenReserves: bigint,
-    virtualSolReserves: bigint,
-    realTokenReserves: bigint,
-    realSolReserves: bigint,
-    tokenTotalSupply: bigint,
-    complete: boolean
+    discriminator: bigint = 0n,
+    virtualTokenReserves: bigint = BigInt(1073000000 * DEFAULT_POW),
+    virtualSolReserves: bigint = BigInt(30 * LAMPORTS_PER_SOL),
+    realTokenReserves: bigint = BigInt(793100000 * DEFAULT_POW),
+    realSolReserves: bigint = 0n,
+    tokenTotalSupply: bigint = BigInt(1000000000 * DEFAULT_POW),
+    complete: boolean = false
   ) {
     this.discriminator = discriminator;
     this.virtualTokenReserves = virtualTokenReserves;
@@ -52,6 +54,30 @@ export class BondingCurveAccount {
     return s < this.realTokenReserves ? s : this.realTokenReserves;
   }
 
+  simulateBuy(solAmounts: bigint[]): bigint[] {
+    let simulateTokenBuyAmounts: bigint[] = [];
+    for (let i = 0; i < solAmounts.length; i++) {
+      let n = this.virtualSolReserves * this.virtualTokenReserves;
+
+      // Calculate the new virtual sol reserves after the purchase
+      let l = this.virtualSolReserves + solAmounts[i];
+
+      // Calculate the new virtual token reserves after the purchase
+      let r = n / l + 1n;
+
+      // Calculate the amount of tokens to be purchased
+      let s = this.virtualTokenReserves - r;
+
+      // Return the minimum of the calculated tokens and real token reserves
+      simulateTokenBuyAmounts[i] = s < this.realTokenReserves ? s : this.realTokenReserves;
+
+      this.realSolReserves += solAmounts[1];
+      this.virtualTokenReserves -= simulateTokenBuyAmounts[i];
+      this.realTokenReserves -= simulateTokenBuyAmounts[i];
+    }
+    return simulateTokenBuyAmounts;
+  }
+
   getSellPrice(amount: bigint, feeBasisPoints: bigint): bigint {
     if (this.complete) {
       throw new Error("Curve is complete");
@@ -70,6 +96,30 @@ export class BondingCurveAccount {
 
     // Return the net amount after deducting the fee
     return n - a;
+  }
+
+  simulateSell(tokenAmounts: bigint[], feeBasisPoints: bigint): bigint[] {
+    if (this.complete) {
+      throw new Error("Curve is complete");
+    }
+
+    let simulateSolSellAmounts: bigint[] = [];
+
+    for (let i = 0; i < tokenAmounts.length; i++) {
+      // Expected sol amount including fee, pumpfun charge 1% fee of selling token
+      let n = (tokenAmounts[i] * this.virtualSolReserves) / (this.virtualTokenReserves + tokenAmounts[i]);
+
+      // Calculate the fee amount in the same units
+      let a = (n * feeBasisPoints) / 10000n;
+
+      // Return the net amount after deducting the fee
+      simulateSolSellAmounts[i] = n - a;
+      this.virtualTokenReserves += tokenAmounts[i];
+      this.realTokenReserves += tokenAmounts[i];
+      this.realSolReserves -= n;
+    }
+
+    return simulateSolSellAmounts;
   }
 
   getMarketCapSOL(): bigint {

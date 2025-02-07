@@ -5,7 +5,7 @@ import fs from "fs";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import base58 from "bs58";
 import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
-import { Key } from "../cache/keys";
+import { connection } from "../config";
 
 export const DEFAULT_COMMITMENT: Commitment = "confirmed";
 export const DEFAULT_FINALITY: Finality = "finalized";
@@ -22,7 +22,6 @@ export async function printSOLBalance(
     `SOL`
   );
 }
-
 
 
 export const printSPLBalance = async (
@@ -88,24 +87,29 @@ export async function buildTx(
   priorityFees?: PriorityFee,
   commitment: Commitment = DEFAULT_COMMITMENT,
   finality: Finality = DEFAULT_FINALITY
-): Promise<VersionedTransaction> {
-  let newTx = new Transaction();
+): Promise<VersionedTransaction | null> {
+  try {
+    let newTx = new Transaction();
 
-  if (priorityFees) {
-    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-      units: priorityFees.unitLimit,
-    });
+    if (priorityFees) {
+      const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+        units: priorityFees.unitLimit,
+      });
 
-    const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
-      microLamports: priorityFees.unitPrice,
-    });
-    newTx.add(modifyComputeUnits);
-    newTx.add(addPriorityFee);
+      const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: priorityFees.unitPrice,
+      });
+      newTx.add(modifyComputeUnits);
+      newTx.add(addPriorityFee);
+    }
+    newTx.add(tx);
+    let versionedTx = await buildVersionedTx(connection, payer, newTx, latestBlockhash, commitment);
+    versionedTx.sign(signers);
+    return versionedTx;
+  } catch (err) {
+    console.log(`There are some errors in getting versioned transaction, ${err}`);
+    return null;
   }
-  newTx.add(tx);
-  let versionedTx = await buildVersionedTx(connection, payer, newTx, latestBlockhash, commitment);
-  versionedTx.sign(signers);
-  return versionedTx;
 }
 
 export const buildVersionedTx = async (
@@ -270,6 +274,30 @@ export const simulateTxBeforeSendBundle = async (
   // return true;
 }
 
+export const isFundSufficent = async (
+  account: PublicKey,
+  solAmount: bigint,
+  connection: Connection
+) => {
+  let count = 0;
+  while (1) {
+    try {
+      if (BigInt(await connection.getBalance(account)) != solAmount) {
+        return false;
+      }
+      break;
+    } catch (err) {
+      console.log(`Errors when getting sol balance of account, ${err}`);
+      count++;
+      if (count >= 3) {
+        console.log("RPC Error or Invalid solana address");
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 export const calculateWithSlippageSell = (
   amount: bigint,
   basisPoints: bigint
@@ -288,6 +316,7 @@ export const createNewPrivateKeyBasedonAssets = (allWallets: string[]) => {
 
 // check if given string is valid solana private key
 export const isValidSolanaPrivateKey = (keys: string[]) => {
+  console.log(keys);
   try {
     keys.map(key => {
       Keypair.fromSecretKey(bs58.decode(key));
