@@ -1,17 +1,18 @@
+import { Keypair } from "@solana/web3.js"
 
 export type DistributionType = {
-  fundWalletPrivateKey: string
-  walletPrivateKeys: string[],
+  fundWalletSK: string
+  walletSKs: string[],
   solAmounts: number[]
 }
 
 export type LaunchTokenType = {
-  devSK : string,
-  sniperSK: string,
-  commonSKs: string[],
-  devSolAmount: number,
-  sniperSolAmount: number,
-  commonSolAmounts: number[],
+  devAccount: Keypair,
+  sniperAccount: Keypair,
+  commonAccounts: Keypair[],
+  devAmount: bigint,
+  sniperAmount: bigint,
+  commonAmounts: bigint[],
   jitoFee: number
 }
 

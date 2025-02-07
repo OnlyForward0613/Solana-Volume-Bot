@@ -1,13 +1,14 @@
 import { Request, Response } from "express";
 import { DistributionType } from "../types";
 import { launchTokenService, distributionService } from "../services/pumpfun.service";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { ResponseStatus } from "../core/ApiResponse";
 import { AmountType, Key, NetworkType, WalletKey, WalletType } from "../cache/keys";
 import { getJson, getListRange, getValue } from "../cache/query";
-import { JITO_FEE } from "../config";
+import { connection, JITO_FEE } from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
+import { isFundSufficent } from "../helper/util";
 
 export async function launchToken(req: Request, res: Response) {
   try {
@@ -35,22 +36,45 @@ export async function launchToken(req: Request, res: Response) {
 
     const jitoFee =  Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
     
-    const commonAvailable = commonSolAmounts.filter(value =>  value > 0);
+    const checkers = commonSolAmounts.map(value => value > 0);
+    
+    let realCommonSKs = commonSKs.filter((_, index) => checkers[index]);
+    let realCommonAccounts = realCommonSKs.map(account => Keypair.fromSecretKey(bs58.decode(account)));
+    
+    let realCommonSolAmounts = commonSolAmounts.filter((_, index) => checkers[index]);
+    let realCommonAmounts = realCommonSolAmounts.map(value => BigInt(value * LAMPORTS_PER_SOL));
+    let devAmount = BigInt(devSolAmount * LAMPORTS_PER_SOL);
+    let sniperAmount = BigInt(sniperSolAmount * LAMPORTS_PER_SOL);
 
+    const devAccount = Keypair.fromSecretKey(bs58.decode(devSK)); 
+    const sniperAccount = Keypair.fromSecretKey(bs58.decode(sniperSK));
+    const mint = Keypair.fromSecretKey(bs58.decode(mintSK));
 
-    // const result = await launchTokenService(
-    //   {
-    //     devSK,
-    //     sniperSK,
-    //     commonSKs,
-    //     devSolAmount,
-    //     sniperSolAmount,
-    //     commonSolAmounts,
-    //     jitoFee
-    //   }, 
-    //   tokenInfo,
-    //   mintSK,
-    // );
+    if (!isFundSufficent(devAccount.publicKey, devAmount, connection)) 
+      throw Error("Dev wallet doesn' have enough fund");
+
+    if (!isFundSufficent(sniperAccount.publicKey, sniperAmount, connection))
+      throw Error("Sniper wallet doesn' have enough fund");
+
+    for (let i = 0; i < realCommonAccounts.length; i++) {
+      if (!isFundSufficent(realCommonAccounts[i].publicKey, realCommonAmounts[i], connection))
+        throw Error("Sniper wallet doesn' have enough fund");
+    }
+
+    const result = await launchTokenService(
+      {
+        devAccount,
+        sniperAccount,
+        commonAccounts: realCommonAccounts,
+        devAmount,
+        sniperAmount,
+        commonAmounts: realCommonAmounts,
+        jitoFee
+      }, 
+      tokenInfo,
+      mint,
+      connection,
+    );
 
     res.status(ResponseStatus.SUCCESS).send("Token launch is success");
 
@@ -86,7 +110,7 @@ export async function distributionSol(req: Request, res: Response) {
       fundWalletPrivateKey: fundPrivateKey, 
       walletPrivateKeys: [sniperPrivateKey, ...commonPrivateKeys],
       solAmounts: [sniperAmount, ...commonAmounts] 
-    });
+    }, connection);
 
     res.status(ResponseStatus.SUCCESS).send("Distribution sol is Ok");
 

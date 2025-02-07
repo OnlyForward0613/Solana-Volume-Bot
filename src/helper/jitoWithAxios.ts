@@ -122,7 +122,7 @@ export const jitoWithAxios = async (
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
           blockhash: latestBlockhash.blockhash,
         },
-        COMMITMENT_LEVEL,
+        "processed",
       );
 
       console.log(confirmation)
@@ -141,6 +141,17 @@ export const jitoWithAxios = async (
     console.log('Error during transaction execution', error);
     return { confirmed: false };
   }
+}
+
+export const jitoTipIx = (
+  payerPubKey: PublicKey,
+  jitoFee: number,
+) => {
+  return SystemProgram.transfer({
+    fromPubkey: payerPubKey,
+    toPubkey: getJitoTipWallet(),
+    lamports: jitoFee,
+  });
 }
 
 
