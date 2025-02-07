@@ -209,25 +209,25 @@ export class PumpFunSDK {
 
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
-      let initialTx = new Transaction();
+      // let initialTx = new Transaction();
       const bundleTxs: VersionedTransaction[] = [];
 
-      let simulateSniperSellSolAmounts = bondingCurveAccount.simulateSell(sellTokenAmounts, globalAccount.feeBasisPoints);
       let tipIx = jitoTipIx(payer.publicKey, jitoFee);
-      initialTx.add(tipIx);
-
-      let initialVersionedTx = await buildTx(
-        connection,
-        initialTx,
-        payer.publicKey,
-        [payer],
-        latestBlockhash,      
-      );
-
-
-      if (!initialVersionedTx) throw Error("Errors when sell tokens in sniper wallet");
-      bundleTxs.push(initialVersionedTx);
-
+      // initialTx.add(tipIx);
+      
+      // let initialVersionedTx = await buildTx(
+      //   connection,
+      //   initialTx,
+      //   payer.publicKey,
+      //   [payer],
+      //   latestBlockhash,      
+      // );
+      
+      
+      // if (!initialVersionedTx) throw Error("Errors when sell tokens in sniper wallet");
+      // bundleTxs.push(initialVersionedTx);
+      
+      let simulateSniperSellSolAmounts = bondingCurveAccount.simulateSell(sellTokenAmounts, globalAccount.feeBasisPoints);
       let sellIxs = await Promise.all(sellAccounts.map(async (seller, index) => {
         return await this.getSellInstructionsBySimulateSellSolAmount(
           seller.publicKey,
@@ -243,13 +243,14 @@ export class PumpFunSDK {
       let chunkCommonAccounts = chunk(sellAccounts, ixChunkLimit);
 
       await Promise.all(chunkCommonBuyIxs.map(async (buyIxs, index) => {
-        let newTx = (new Transaction).add(...sellIxs);
+        let newTx = (new Transaction).add(...buyIxs);
+        if (index == chunkCommonBuyIxs.length - 1) newTx.add(tipIx);
         let newVersionedTx = await buildTx(
           connection,
           newTx,
           payer.publicKey,
           [payer, ...chunkCommonAccounts[index]],
-          latestBlockhash
+          latestBlockhash,
         );
         if (!newVersionedTx) throw Error("Errors when buy tokens in common wallets");
         bundleTxs.push(newVersionedTx);

@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 // import { insertMovie, Movies, Update, Delete } from "../controller/movie.route";
-import { distributionSol, gatherFund, launchToken, sellByAmount, sellByPercentage } from "../controller/pumpfun.route";
+import { distributionSol, gatherFund, launchToken, sellByAmount, sellByPercentage, sellDumpAll } from "../controller/pumpfun.route";
 import { 
   getWallets, 
   generateCommonWallets, 
@@ -33,12 +33,13 @@ const router = Router();
 router.get("/launch-token", launchToken);
 
 // sell token
-router.get("/sell-by-percentage", validator(schema.sellByPercentage), sellByPercentage);
-router.get("/sell-by-amount", validator(schema.sellByAmount), sellByAmount)
+router.post("/sell-by-percentage", validator(schema.sellByPercentage), sellByPercentage);
+router.post("/sell-by-amount", validator(schema.sellByAmount), sellByAmount);
+router.get("/sell-dump-all", sellDumpAll);
 
 // distribution and gather
 router.post("/distributionSol", validator(schema.distributionToWallets), distributionSol);
-router.get("gather-fund", gatherFund);
+router.get("/gather-fund", gatherFund);
 
 // Generate wallets
 router.get("/generate-wallet/common", validator(schema.generateCommonWallets, ValidationSource.QUERY), generateCommonWallets);

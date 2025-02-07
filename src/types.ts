@@ -24,7 +24,13 @@ export type LaunchTokenType = {
   devAmount: bigint,
   sniperAmount: bigint,
   commonAmounts: bigint[],
-  jitoFee: number
+}
+
+export type SellDumpAllType = {
+  payer: Keypair,
+  sellAccounts: Keypair[],
+  sellTokenAmounts: bigint[],
+  mintPubKey: PublicKey,
 }
 
 export interface Wallets {
