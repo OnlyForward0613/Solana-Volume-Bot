@@ -23,6 +23,14 @@ export default {
     sniperAmount: Joi.number().required().min(0),
     commonAmounts: Joi.array().required().items(Joi.number().min(0)),
   }),
+  sellByPercentage: Joi.object().keys({
+    walletSK: Joi.string().required(),
+    percentage: Joi.number().required().min(0).max(100),
+  }),
+  sellByAmount: Joi.object().keys({
+    walletSK: Joi.string().required(),
+    tokenAmount: Joi.number().required().min(0),
+  }),
   generateCommonWallets: Joi.object().keys({
     nums: Joi.string().required().min(1).max(2),
   }),
