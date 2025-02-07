@@ -1,14 +1,14 @@
 import { Request, Response } from "express";
-import { DistributionType } from "../types";
-import { launchTokenService, distributionService } from "../services/pumpfun.service";
+import { launchTokenService, distributionService, gatherService, sellService } from "../services/pumpfun.service";
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { ResponseStatus } from "../core/ApiResponse";
-import { AmountType, Key, NetworkType, WalletKey, WalletType } from "../cache/keys";
+import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
 import { getJson, getListRange, getValue } from "../cache/query";
 import { connection, JITO_FEE } from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
-import { isFundSufficent } from "../helper/util";
+import { getSPLBalance, isFundSufficent, isValidSolanaPrivateKey } from "../helper/util";
+import { DEFAULT_POW } from "../pumpfun/sdk";
 
 export async function launchToken(req: Request, res: Response) {
   try {
@@ -91,31 +91,140 @@ export async function distributionSol(req: Request, res: Response) {
       sniperAmount,
       commonAmounts
     } = req.body;
-    const fundPrivateKey = await getValue(WalletKey.FUND);
-    const sniperPrivateKey = await getValue(WalletKey.SNIPER) ?? "";
-    const commonPrivateKeys: string[] = await getListRange(WalletKey.COMMON) ?? [];
-    if (commonAmounts.length != commonPrivateKeys?.length) {
-      res.status(ResponseStatus.NOT_FOUND).send("Insufficent input of common wallets");
-      return;
+    const fundWalletSK = await getValue(WalletKey.FUND) ?? null;
+    const sniperWalletSK = await getValue(WalletKey.SNIPER) ?? null;
+    const commonWalletSKs: string[] = await getListRange(WalletKey.COMMON) ?? [];
+
+    const walletSKs: string[] = [];
+    const solAmounts: number[] = [];
+    if (commonAmounts.length > 0 && commonAmounts.length != commonWalletSKs?.length) throw Error("Insufficent input of common wallets");
+    if (!fundWalletSK) throw Error("Doesn't exist fund wallet, please import fund wallet info");
+    if (!sniperWalletSK) throw Error("Doesn't exist sniper wallet, please import sniper wallet");
+    else {
+      solAmounts.push(sniperAmount);
     }
-    if (!fundPrivateKey) {
-      res.status(ResponseStatus.NOT_FOUND).send("Doesn't exist fund wallet, please import fund wallet info");
-      return;
-    }
-    if (sniperAmount > 0 && !sniperAmount) {
-      res.status(ResponseStatus.NOT_FOUND).send("Doesn't exist sniper wallet, please import sniper wallet");
-    }
+    solAmounts.push(...commonAmounts);
+
+    if (!solAmounts.length) throw Error("Any wallet doesn't exsit to fund");
 
     await distributionService({ 
-      fundWalletSK: fundPrivateKey, 
-      walletSKs: [sniperPrivateKey, ...commonPrivateKeys],
-      solAmounts: [sniperAmount, ...commonAmounts] 
+      fundWalletSK,
+      walletSKs,
+      solAmounts, 
     }, connection);
 
     res.status(ResponseStatus.SUCCESS).send("Distribution sol is Ok");
 
   } catch (err) {
     console.log(`Errors when getting data in distributionSol endpoint, ${err}`);
-    res.status(ResponseStatus.NOT_FOUND).send("Errors in distribution endpoint");
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when getting data in distributionSol endpoint, ${err}`);
+  }
+}
+
+export const gatherFund = async (req: Request, res: Response) => {
+  try {
+    const fundWalletSK = await getValue(WalletKey.FUND) ?? null;
+    if (!fundWalletSK) throw Error("fund wallet doesn't exist");
+
+    const walletSKs: string[] = [];
+
+    const devWalletSK = await getValue(WalletKey.DEV) ?? null;
+    if (devWalletSK) walletSKs.push(devWalletSK);
+
+    const sniperWalletSK = await getValue(WalletKey.SNIPER) ?? null;
+    if (sniperWalletSK) walletSKs.push(sniperWalletSK);
+
+    const commonWalletSKs = await getListRange<string>(WalletKey.COMMON);
+    if (commonWalletSKs?.length) walletSKs.push(...commonWalletSKs);
+    
+    if (!walletSKs?.length) throw Error("There isn't any wallet to fund");
+
+    const result = await gatherService(
+      { 
+        fundWalletSK, 
+        walletSKs 
+      },
+      connection
+    );;
+
+    res.status(ResponseStatus.SUCCESS).send("Gathering fund to fund wallet is success");
+
+  } catch (err) {
+    console.log(`Errors when gathering all wallet fund to fund wallet, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when gathering all wallet fund to fund wallet, ${err}`);
+  }
+}
+
+// sell percentage
+export const sellByPercentage = async (req: Request, res: Response) => {
+  try {
+    const walletSK = req.body.walletSK;
+    if (!isValidSolanaPrivateKey([walletSK])) throw Error("Invalid solana address");
+    const percentage = req.body.percentage;
+    const commonWalletSKs = await getListRange(WalletKey.COMMON) ?? [];
+    if (!commonWalletSKs?.length || commonWalletSKs.includes(walletSK)) throw Error("the wallet doesn't exsit in common wallets");
+    const mintSK = await getValue(Key.MINT_PRIVATEKEY) ?? null;
+    if (!mintSK) throw Error("Mint address doesn't exist");
+    const mintAccount = Keypair.fromSecretKey(bs58.decode(mintSK));
+    const walletAccount = Keypair.fromSecretKey(bs58.decode(walletSK));
+    const tokenFloatAmount = await getSPLBalance(
+      connection,
+      mintAccount.publicKey,
+      walletAccount.publicKey,
+    );
+
+    const jitoFee = Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
+    
+    if (!tokenFloatAmount) throw Error("Don't have any token in the wallet");
+    let tokenAmount = BigInt(Math.floor(DEFAULT_POW * tokenFloatAmount * percentage / 100));
+
+    const result = await sellService(
+      {
+        walletAccount,
+        mintPubKey: mintAccount.publicKey,
+        tokenAmount
+      }, 
+      connection,
+      jitoFee,
+    );
+
+  } catch (err) {
+    console.log(`Errors when selling percentage, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when selling percentage, ${err}`);
+  }
+}
+
+export const sellByAmount = async (req: Request, res: Response) => {
+  try {
+    const walletSK = req.body.walletSK;
+    if (!isValidSolanaPrivateKey([walletSK])) throw Error("Invalid solana address");
+    const tokenAmount = req.body.tokenAmount;
+    const commonWalletSKs = await getListRange(WalletKey.COMMON) ?? [];
+    if (!commonWalletSKs?.length || commonWalletSKs.includes(walletSK)) throw Error("the wallet doesn't exsit in common wallets");
+    const mintSK = await getValue(Key.MINT_PRIVATEKEY) ?? null;
+    if (!mintSK) throw Error("Mint address doesn't exist");
+    const mintAccount = Keypair.fromSecretKey(bs58.decode(mintSK));
+    const walletAccount = Keypair.fromSecretKey(bs58.decode(walletSK));
+    const tokenFloatAmount = await getSPLBalance(
+      connection,
+      mintAccount.publicKey,
+      walletAccount.publicKey,
+    );
+    if (!tokenFloatAmount || tokenFloatAmount < tokenAmount) throw Error("Don't have sufficent token in the wallet");
+   
+    const jitoFee = Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
+    
+    const result = await sellService(
+      {
+        walletAccount,
+        mintPubKey: mintAccount.publicKey,
+        tokenAmount: BigInt(Math.floor(DEFAULT_POW * tokenAmount)),
+      }, 
+      connection,
+      jitoFee,
+    );
+  } catch (err) {
+    console.log(`Errors when selling token by amount, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when selling token by amount, ${err}`);
   }
 }
