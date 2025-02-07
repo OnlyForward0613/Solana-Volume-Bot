@@ -59,4 +59,7 @@ export default {
     metadataUri: Joi.string().required().uri(),
     mintPrivateKey: Joi.string().required(),
   }),
+  removeCommonWallet: Joi.object().keys({
+    wallet: Joi.string().required(),
+  })
 };

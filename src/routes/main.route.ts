@@ -18,7 +18,11 @@ import {
   setNetwork, 
   setSellAmount, 
   setSellPercentage,
-  setTokenMetadataInfo
+  setTokenMetadataInfo,
+  removeFundWallet,
+  removeDevWallet,
+  removeSniperWallet,
+  removeCommonWallet
 } from "../controller/wallet.route";
 import schema from "./schema";
 import validator, { ValidationSource } from "../helper/validator";
@@ -63,5 +67,11 @@ router.get("/get-sell-amount", getSellAmount);
 // Manage token info
 router.post("/set-token-metadata", validator(schema.setTokenMetadata), setTokenMetadataInfo);
 router.get("/get-token-metadata", getTokenMetadataInfo);
+
+// remove wallets
+router.delete("/remove-wallet/fund", removeFundWallet);
+router.delete("/remove-wallet/dev", removeDevWallet);
+router.delete("/remove-wallet/sniper", removeSniperWallet);
+router.delete("/remove-wallet/common", validator(schema.removeCommonWallet), removeCommonWallet);
 
 export default router;

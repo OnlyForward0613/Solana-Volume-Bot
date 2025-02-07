@@ -11,7 +11,6 @@ import { GlobalAccount } from "./globalAccount";
 import { BN } from "bn.js";
 import { getJitoTipWallet, jitoTipIx, jitoWithAxios } from "../helper/jitoWithAxios";
 import { SystemProgram } from "@solana/web3.js";
-import { sendBundle } from "../helper/jito";
 import { chunk } from "lodash";
 
 
@@ -36,101 +35,6 @@ export class PumpFunSDK {
     this.program = new Program<PumpFun>(IDL as PumpFun, provider);
     this.connection = this.program.provider.connection;
   }
-
-  // async createAndBuyJitoClient(
-  //   creator: Keypair,
-  //   mint: Keypair,
-  //   buyers: Keypair[],
-  //   tokenInfo: TokenMetadataType, // tokenMetadata
-  //   buyAmountsSol: bigint[], 
-  //   slippageBasisPoints: bigint = 300n,
-  //   priorityFees?: PriorityFee, // set unitLimit and unitPrice
-  //   commitment: Commitment = DEFAULT_COMMITMENT,
-  //   finality: Finality = DEFAULT_FINALITY
-  // ) {
-
-  //   try {
-  //     let latestBlockhash = await this.connection.getLatestBlockhash();
-
-  //     // Getting createTx
-  //     let createIx = await this.getCreateInstructions(
-  //       creator.publicKey,
-  //       tokenInfo.name,
-  //       tokenInfo.symbol,
-  //       tokenInfo.metadataUri,
-  //       mint
-  //     );
-
-  //     const buySimulateAmountsSol = this.simulateBuys(buyAmountsSol);
-  //     console.log(buySimulateAmountsSol);
-
-  //     let devbuyTx = await this.getBuyInstructions(
-  //       creator.publicKey,
-  //       mint.publicKey,
-  //       FEE_RECIPICEMT,
-  //       buySimulateAmountsSol[0].tokenAmount,
-  //       buySimulateAmountsSol[0].solAmount,
-  //       commitment
-  //     );
-
-  //     const tipIx = SystemProgram.transfer({
-  //       fromPubkey: creator.publicKey,
-  //       toPubkey: getJitoTipWallet(),
-  //       lamports: JITO_FEE,
-  //     });
-
-  //     const initTx = (new Transaction).add(...[createIx, devbuyTx, tipIx,]);
-
-  //     let initVersionedTx = await buildTx(
-  //       this.connection,
-  //       initTx,
-  //       creator.publicKey,
-  //       [creator, mint], // signers
-  //       latestBlockhash,
-  //       priorityFees,
-  //       commitment,
-  //       finality
-  //     );
-
-  //     console.log("initVersionedTx is ok");
-
-  //     const bundledTxns: VersionedTransaction[] = [];
-  //     if (initVersionedTx) bundledTxns.push(initVersionedTx);
-  //     else return false;
-      
-  //     // get address lookup table
-  //     for (let i = 1; i < buySimulateAmountsSol.length; i++) {
-  //       let buyerTx = await this.getBuyInstructions(
-  //         creator.publicKey,
-  //         mint.publicKey,
-  //         FEE_RECIPICEMT,
-  //         buySimulateAmountsSol[i].tokenAmount,
-  //         buySimulateAmountsSol[i].solAmount,
-  //         commitment
-  //       );
-  //       let buyerVersionedTx = await buildTx(
-  //         this.connection,
-  //         buyerTx,
-  //         buyers[1].publicKey,
-  //         [buyers[1]],
-  //         latestBlockhash,
-  //         priorityFees,
-  //         commitment,
-  //         finality
-  //       );
-  //       if (buyerVersionedTx) bundledTxns.push(buyerVersionedTx);
-  //       else return false;
-  //     }
-
-  //     console.log(bundledTxns);
-
-  //     return await sendBundle(bundledTxns, latestBlockhash);
-  //   } catch (err) {
-  //     console.log(`Errors when creating token, ${err}`);
-  //     return false;
-  //   }
-    
-  // }
 
   async launchToken(
     creator: Keypair, // devAccount

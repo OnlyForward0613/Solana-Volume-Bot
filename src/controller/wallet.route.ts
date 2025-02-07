@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { getAllWallets } from "../cache/repository/WalletCache";
-import { addToList, getCommonWalletsCounts, getHash, getJson, getListRange, getValue, keyExists, setHash, setJson, setList, setValue } from "../cache/query";
+import { addToList, deleteElementFromListWithIndex, deleteElementFromListWithValue, deleteKey, getCommonWalletsCounts, getHash, getJson, getListRange, getValue, keyExists, setHash, setJson, setList, setValue } from "../cache/query";
 import { Keypair } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
+import { AmountType, Key, NetworkType, WalletKey, WalletType } from "../cache/keys";
 import { MAX_COMMON_WALLETS_NUMS} from "../config";
 import { createNewPrivateKeyBasedonAssets, isValidSolanaPrivateKey } from "../helper/util";
 import { ResponseStatus } from "../core/ApiResponse";
@@ -334,6 +334,75 @@ export const getTokenMetadataInfo = async (req: Request, res: Response) => {
   } catch (err) {
     console.log(`Errors when getting tokenMetadata info, ${err}`);
     res.status(ResponseStatus.NOT_FOUND).send("Errors when getting tokenMetadata info");
+  }
+}
+
+// remote fund wallet
+export const removeFundWallet = async (req: Request, res: Response) => {
+  try {
+    const fundWallet = await getValue(WalletKey.FUND) ?? null;
+    if (!fundWallet) throw Error("fund wallet doesn't exist");
+    
+    await deleteKey(WalletKey.FUND);
+    res.status(ResponseStatus.SUCCESS).send("Deleting fund wallet is success");
+
+  } catch (err) {
+    console.log(`Errors when removing fund wallet, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when removing fund wallet, ${err}`);
+  }
+}
+
+// remote Dev wallet
+export const removeDevWallet = async (req: Request, res: Response) => {
+  try {
+    const devWallet = await getValue(WalletKey.DEV) ?? null;
+    if (!devWallet) throw Error("dev wallet doesn't exist");
+    
+    await deleteKey(WalletKey.DEV);
+    res.status(ResponseStatus.SUCCESS).send("Deleting dev wallet is success");
+
+  } catch (err) {
+    console.log(`Errors when removing dev wallet, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when removing dev wallet, ${err}`);
+  }
+}
+
+// remote sniper wallet
+export const removeSniperWallet = async (req: Request, res: Response) => {
+  try {
+    const sniperWallet = await getValue(WalletKey.SNIPER) ?? null;
+    if (!sniperWallet) throw Error("sniper wallet doesn't exist");
+    
+    await deleteKey(WalletKey.SNIPER);
+    res.status(ResponseStatus.SUCCESS).send("Deleting sniper wallet is success");
+
+  } catch (err) {
+    console.log(`Errors when removing sniper wallet, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when removing sniper wallet, ${err}`);
+  }
+}
+
+export const removeCommonWallet = async (req: Request, res: Response) => {
+  try {
+    const wallet = req.body.wallet;
+    const commonWallets = await getListRange(WalletKey.COMMON) ?? [];
+    console.log(wallet);
+    console.log(commonWallets);
+    if (!commonWallets.length) throw Error("common wallets doesn't exist yet");
+    for (let i = 0; i < commonWallets.length; i++) {
+      if (commonWallets[i] == wallet) {
+        let result = await deleteElementFromListWithIndex(WalletKey.COMMON, i);
+        console.log(result);
+        if (await keyExists(AmountType.COMMON)) result = await deleteElementFromListWithIndex(AmountType.COMMON, i);
+        console.log(result);
+        res.status(ResponseStatus.SUCCESS).send("Removing wallet is Success");
+        return;
+      }
+    }
+    throw Error("Removeing wallet failed");
+  } catch (err) {
+    console.log(`Errors when removing common wallet, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when removing common wallet, ${err}`);
   }
 }
 

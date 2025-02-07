@@ -13,6 +13,39 @@ export async function keyExists(...keys: string[]) {
   return (await cache.exists(keys)) ? true : false;
 }
 
+export async function deleteKey(key: Key | DynamicKeyType) {
+  return cache.del(key);
+}
+
+export async function deleteElementFromListWithValue(
+  key: Key | DynamicKeyType,
+  value: string,
+) {
+  const type = await cache.type(key);
+  if (type !== TYPES.LIST) return null;
+  return cache.lRem(key, 1, value);
+}
+
+export async function deleteElementFromListWithIndex(
+  key: Key | DynamicKeyType,
+  index: number,
+) {
+  const type = await cache.type(key);
+  if (type !== TYPES.LIST) return null;
+  
+  const length = await cache.lLen(key);
+
+  for (let i = 0; i < length; i++) {
+    if (i != index) {
+      const value = await cache.lIndex(key, i);
+      if (value) await cache.rPush('temp_list', value);
+    }
+  }
+
+  await cache.del(key);
+  return cache.rename('temp_list', key);
+}
+
 export async function setValue(
   key: Key | DynamicKeyType,
   value: string | number,
