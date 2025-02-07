@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import { launchTokenService, distributionService, gatherService, sellService } from "../services/pumpfun.service";
+import { launchTokenService, distributionService, gatherService, sellService, sellDumpAllService } from "../services/pumpfun.service";
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { ResponseStatus } from "../core/ApiResponse";
-import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
+import { AmountType, Key, NetworkType, WalletKey, WalletType } from "../cache/keys";
 import { getJson, getListRange, getValue } from "../cache/query";
 import { connection, JITO_FEE } from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
@@ -69,11 +69,11 @@ export async function launchToken(req: Request, res: Response) {
         devAmount,
         sniperAmount,
         commonAmounts: realCommonAmounts,
-        jitoFee
       }, 
       tokenInfo,
       mint,
       connection,
+      jitoFee,
     );
 
     res.status(ResponseStatus.SUCCESS).send("Token launch is success");
@@ -106,12 +106,17 @@ export async function distributionSol(req: Request, res: Response) {
     solAmounts.push(...commonAmounts);
 
     if (!solAmounts.length) throw Error("Any wallet doesn't exsit to fund");
+    const jitoFee =  Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
 
-    await distributionService({ 
-      fundWalletSK,
-      walletSKs,
-      solAmounts, 
-    }, connection);
+    await distributionService(
+      { 
+        fundWalletSK,
+        walletSKs,
+        solAmounts, 
+      }, 
+      connection,
+      jitoFee,
+    );
 
     res.status(ResponseStatus.SUCCESS).send("Distribution sol is Ok");
 
@@ -138,13 +143,17 @@ export const gatherFund = async (req: Request, res: Response) => {
     if (commonWalletSKs?.length) walletSKs.push(...commonWalletSKs);
     
     if (!walletSKs?.length) throw Error("There isn't any wallet to fund");
+    
+    
+    const jitoFee =  Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
 
     const result = await gatherService(
       { 
         fundWalletSK, 
         walletSKs 
       },
-      connection
+      connection,
+      jitoFee,
     );;
 
     res.status(ResponseStatus.SUCCESS).send("Gathering fund to fund wallet is success");
@@ -226,5 +235,58 @@ export const sellByAmount = async (req: Request, res: Response) => {
   } catch (err) {
     console.log(`Errors when selling token by amount, ${err}`);
     res.status(ResponseStatus.NOT_FOUND).send(`Errors when selling token by amount, ${err}`);
+  }
+}
+
+export const sellDumpAll = async (req: Request, res: Response) => {
+  try {
+    const devSK = await getValue(WalletKey.DEV) ?? null
+    const sniperSK = await getValue(WalletKey.SNIPER) ?? null
+    const fundSK = await getValue(WalletKey.FUND) ?? null;
+    const commonSKs = await getListRange<string>(WalletKey.COMMON) ?? [];
+    const mintSK = await getValue(Key.MINT_PRIVATEKEY) ?? null;
+
+    if (!mintSK) throw Error("Mint addresss doen't exist");
+    if (!devSK) throw Error("Dev wallet doesn't exist");
+    if (!sniperSK) throw Error("sniper wallet doesn't exist");
+    if (!fundSK) throw Error("sniper wallet doesn't exist");
+
+
+    let commonAccounts = commonSKs.map(account => Keypair.fromSecretKey(bs58.decode(account)));
+    const devAccount = Keypair.fromSecretKey(bs58.decode(devSK)); 
+    const sniperAccount = Keypair.fromSecretKey(bs58.decode(sniperSK));
+    const mint = Keypair.fromSecretKey(bs58.decode(mintSK));
+    const fundAccount = Keypair.fromSecretKey(bs58.decode(fundSK));
+
+    let walletAccounts: Keypair[] = [devAccount, sniperAccount, ...commonAccounts];
+
+    let sellTokenAmounts: bigint[] = []
+    let sellAccounts: Keypair[] = []
+    await Promise.all(walletAccounts.map(async (account, index) => {
+      let amount = await getSPLBalance(connection, mint.publicKey, account.publicKey);
+      if (amount && amount > 0) {
+        sellAccounts.push(account);
+        sellTokenAmounts.push(BigInt(Math.floor(DEFAULT_POW * amount)));
+      }
+    }));
+
+    if (!sellAccounts.length) throw Error("Any wallet dosn't have any token");
+    
+    const jitoFee = Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
+
+    const result = await sellDumpAllService(
+      {
+        payer: fundAccount,
+        sellAccounts,
+        sellTokenAmounts,
+        mintPubKey: mint.publicKey
+      },
+      connection,
+      jitoFee,
+    );
+    
+  } catch (err) {
+    console.log(`Errors when selling dump all, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when selling dump all, ${err}`);
   }
 }

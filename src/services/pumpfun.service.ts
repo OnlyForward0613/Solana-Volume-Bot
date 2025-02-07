@@ -1,9 +1,8 @@
 import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
-import { LaunchTokenType, DistributionType, GatherType, sellType } from "../types";
-import { buildTx, buildVersionedTx, getSPLBalance, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
+import { LaunchTokenType, DistributionType, GatherType, sellType, SellDumpAllType } from "../types";
+import { buildTx, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle } from "../helper/util";
 import { JITO_FEE, sdk } from "../config";
-import { DEFAULT_DECIMALS } from "../pumpfun/sdk";
-import { TokenMetadataType, MARKETActionType } from "../pumpfun/types";
+import { TokenMetadataType } from "../pumpfun/types";
 import base58 from "bs58";
 import { getJitoTipWallet, jitoWithAxios } from "../helper/jitoWithAxios";
 import chunk from 'lodash/chunk';
@@ -22,11 +21,11 @@ export async function launchTokenService(
     devAmount,
     sniperAmount,
     commonAmounts,
-    jitoFee
   }: LaunchTokenType, 
   tokenInfo: TokenMetadataType,
   mint: Keypair,
   connection: Connection,
+  jitoFee: number = JITO_FEE,
 ) {
 
   try {
@@ -51,6 +50,8 @@ export async function launchTokenService(
         console.log("Success creation:", `https://pump.fun/${mint.publicKey.toBase58()}`);
         console.log(`https://explorer.jito.wtf/bundle/${createResult.jitoTxsignature}`)
         console.log(`jitoTxSignature: ${createResult.jitoTxsignature}`);
+      } else {
+        throw Error("Error when creating new token");
       }
 
       const secondResult = await sdk.firstBundleAfterCreation(
@@ -82,6 +83,8 @@ export async function launchTokenService(
   }
 }
 
+
+// distribute fund from fund wallet to others
 export const distributionService = async (
   { 
     fundWalletSK,
@@ -89,6 +92,7 @@ export const distributionService = async (
     solAmounts,
   }: DistributionType,
   connection: Connection,
+  jitoFee: number = JITO_FEE,
 ) => {
 
   try {
@@ -116,13 +120,12 @@ export const distributionService = async (
       SystemProgram.transfer({
         fromPubkey: fundAccount.publicKey,
         toPubkey: getJitoTipWallet(),
-        lamports: JITO_FEE,
+        lamports: jitoFee,
       })
     );
 
     // we will include several tranfer instructions in one transaction, at least 5 insturctions
     const chunkIxs = chunk(ixs, 5);
-    console.log(chunkIxs);
 
     const latestBlockhash = await connection.getLatestBlockhash();
 
@@ -136,10 +139,10 @@ export const distributionService = async (
         latestBlockhash
       );
       if (!versionedTx) throw Error("Errors when distributing fund to wallets");
-
       return versionedTx;
     }));
 
+    // Output each bundle transaction's size
     bundleTxs.map((bundle, index) => {
       console.log(`txsize${index}: `, bundle.serialize().length);
     });
@@ -172,6 +175,7 @@ export const gatherService = async (
     walletSKs,
   }: GatherType,
   connection: Connection,
+  jitoFee: number = JITO_FEE
 ) => {
 
   try {
@@ -199,7 +203,7 @@ export const gatherService = async (
       SystemProgram.transfer({
         fromPubkey: fundAccount.publicKey,
         toPubkey: getJitoTipWallet(),
-        lamports: JITO_FEE,
+        lamports: jitoFee,
       })
     );
     await Promise.all(walletAccounts.map((account, index) => {
@@ -212,8 +216,7 @@ export const gatherService = async (
     
 
     const chunkInstrunctions = chunk(ixs, 5);
-    console.log(chunkInstrunctions);
-
+  
     const latestBlockhash = await connection.getLatestBlockhash();
 
     const bundleTxs = await Promise.all(chunkInstrunctions.map(async (instructions) => {
@@ -221,8 +224,7 @@ export const gatherService = async (
       const accounts: any[] = [];
       tx.instructions.map((ix) => {
         accounts.push(...ix.keys);
-      })
-      console.log(accounts);
+      });
       const versionedTx = await buildTx(
         connection,
         tx,
@@ -245,13 +247,18 @@ export const gatherService = async (
 
     let result;
     let count = 0;
+
     while (true) {
       result = await jitoWithAxios(bundleTxs, latestBlockhash);
       if (result.confirmed) break;
       count++;
       if (count > 3) throw Error("Bundle failed");
     }
-    console.log(`https://explorer.jito.wtf/bundle/${result.jitoTxsignature}`);
+
+    if (result && result.confirmed) {
+      console.log(`https://explorer.jito.wtf/bundle/${result.jitoTxsignature}`);
+    }
+    
     return result?.jitoTxsignature;
 
   } catch (err) {
@@ -272,6 +279,7 @@ export const sellService = async (
   try {
     let globalAccount = await sdk.getGlobalAccount();
     if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
+    
     const result = await sdk.sellOne(
       walletAccount,
       walletAccount,
@@ -282,13 +290,55 @@ export const sellService = async (
       globalAccount,
       SLIPPAGE_BASIS_POINTS
     );
+
     if (result && result.confirmed) {
       console.log("Success creation:", `https://pump.fun/${mintPubKey.toBase58()}`);
       console.log(`https://explorer.jito.wtf/bundle/${result?.jitoTxsignature}`);
-      return result?.jitoTxsignature
     }
+
+    return result?.jitoTxsignature;
+
   } catch (err) {
     console.log(`Errors when sell token in sellSevice, ${err}`);
+    return null;
+  }
+}
+
+// Sell dump all 
+export const sellDumpAllService = async (
+  {
+    payer,
+    sellAccounts,
+    sellTokenAmounts,
+    mintPubKey,
+  }: SellDumpAllType,
+  connection: Connection,
+  jitoFee: number = JITO_FEE,
+) => {
+  try {
+    let globalAccount = await sdk.getGlobalAccount();
+    if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
+    
+    const result =  await sdk.sellDumpAll(
+      payer,
+      sellAccounts,
+      sellTokenAmounts,
+      mintPubKey,
+      jitoFee,
+      connection,
+      globalAccount,
+      SLIPPAGE_BASIS_POINTS,
+    );
+
+    if (result && result.confirmed) {
+      console.log("Success creation:", `https://pump.fun/${mintPubKey.toBase58()}`);
+      console.log(`https://explorer.jito.wtf/bundle/${result?.jitoTxsignature}`);
+    }
+
+    return result?.jitoTxsignature;
+
+  } catch (err) {
+    console.log(`Error when selling dump all in sellDumpAllService, ${err}`);
     return null;
   }
 }
