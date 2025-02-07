@@ -107,8 +107,8 @@ export async function distributionSol(req: Request, res: Response) {
     }
 
     await distributionService({ 
-      fundWalletPrivateKey: fundPrivateKey, 
-      walletPrivateKeys: [sniperPrivateKey, ...commonPrivateKeys],
+      fundWalletSK: fundPrivateKey, 
+      walletSKs: [sniperPrivateKey, ...commonPrivateKeys],
       solAmounts: [sniperAmount, ...commonAmounts] 
     }, connection);
 

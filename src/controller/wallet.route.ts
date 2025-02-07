@@ -80,38 +80,47 @@ export const generateSniperWallet = async (req: Request, res: Response) => {
 
 // import dev, sniper and common wallets
 export const setWallets = async (req: Request, res: Response) => {
-  const devPrivateKey = req.body.dev ?? "";
-  const sniperPrivateKey = req.body.sniper ?? "";
-  const commonPrivateKeys = req.body.common ?? [];
   
-  // Check if input addresses are valid solana addresses 
-  if (!isValidSolanaPrivateKey([devPrivateKey, sniperPrivateKey, ...commonPrivateKeys])) {
-    res.status(ResponseStatus.NOT_FOUND).send("Invalid Input");
-    return;
-  }
-
-  // Check if input addresses already exists
-  const allWallets = await getAllWallets();
-  if (devPrivateKey && allWallets.includes(devPrivateKey)) {
-    res.status(ResponseStatus.NOT_FOUND).send("devWallet already exists");
-    console.log("devWallet already exists");
-    return;
-  }
-  if (sniperPrivateKey && allWallets.includes(sniperPrivateKey)) {
-    res.status(ResponseStatus.NOT_FOUND).send("sniperWallet already exists");
-    console.log("devWallet already exists");
-    return;
-  }
-
-  for (let key of commonPrivateKeys) {
-    if (allWallets.includes(key)) {
-      res.status(ResponseStatus.NOT_FOUND).send("some common wallets already exists");
-      console.log("some common wallets already exists");
-      return;
-    }
-  }
 
   try {
+    const devPrivateKey = req.body.dev ?? null;
+    const sniperPrivateKey = req.body.sniper ?? null;
+    const commonPrivateKeys = req.body.common ?? [];
+    
+    // Check if input addresses are valid solana addresses
+    if (devPrivateKey && !isValidSolanaPrivateKey([devPrivateKey])) {
+      res.status(ResponseStatus.NOT_FOUND).send("Invalid Input dev wallet");
+      return;
+    }
+    if (sniperPrivateKey && !isValidSolanaPrivateKey([sniperPrivateKey])) {
+      res.status(ResponseStatus.NOT_FOUND).send("Invalid Input sniper wallet");
+      return;
+    }
+    if (commonPrivateKeys.length && !isValidSolanaPrivateKey([commonPrivateKeys])) {
+      res.status(ResponseStatus.NOT_FOUND).send("Invalid Input");
+      return;
+    }
+
+    // Check if input addresses already exists
+    const allWallets = await getAllWallets();
+    if (devPrivateKey && allWallets.includes(devPrivateKey)) {
+      res.status(ResponseStatus.NOT_FOUND).send("devWallet already exists");
+      console.log("devWallet already exists");
+      return;
+    }
+    if (sniperPrivateKey && allWallets.includes(sniperPrivateKey)) {
+      res.status(ResponseStatus.NOT_FOUND).send("sniperWallet already exists");
+      console.log("devWallet already exists");
+      return;
+    }
+
+    for (let key of commonPrivateKeys) {
+      if (allWallets.includes(key)) {
+        res.status(ResponseStatus.NOT_FOUND).send("some common wallets already exists");
+        console.log("some common wallets already exists");
+        return;
+      }
+    }
     if (devPrivateKey) await setValue(WalletKey.DEV, devPrivateKey);
     if (sniperPrivateKey)  await setValue(WalletKey.SNIPER, sniperPrivateKey);
     if (commonPrivateKeys.length) await setList(WalletKey.COMMON, commonPrivateKeys);
