@@ -12,7 +12,6 @@ import { DEFAULT_POW } from "../pumpfun/sdk";
 
 export async function launchToken(req: Request, res: Response) {
   try {
-
     const devSK = await getValue(WalletKey.DEV) ?? null
     const sniperSK = await getValue(WalletKey.SNIPER) ?? null
     const commonSKs = await getListRange<string>(WalletKey.COMMON) ?? [];
@@ -76,7 +75,8 @@ export async function launchToken(req: Request, res: Response) {
       jitoFee,
     );
 
-    res.status(ResponseStatus.SUCCESS).send("Token launch is success");
+    if (result) res.status(ResponseStatus.SUCCESS).send(result);
+    else throw Error("launchToken bundles failed");
 
   } catch (err) {
     console.log(`Errors when launch new token on Pumpfun, ${err}`);
@@ -86,7 +86,6 @@ export async function launchToken(req: Request, res: Response) {
 
 export async function distributionSol(req: Request, res: Response) {
   try {
-
     const {
       sniperAmount,
       commonAmounts
@@ -108,7 +107,7 @@ export async function distributionSol(req: Request, res: Response) {
     if (!solAmounts.length) throw Error("Any wallet doesn't exsit to fund");
     const jitoFee =  Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
 
-    await distributionService(
+    const result = await distributionService(
       { 
         fundWalletSK,
         walletSKs,
@@ -118,7 +117,8 @@ export async function distributionSol(req: Request, res: Response) {
       jitoFee,
     );
 
-    res.status(ResponseStatus.SUCCESS).send("Distribution sol is Ok");
+    if (result) res.status(ResponseStatus.SUCCESS).send("Distribution sol is Ok");
+    else throw Error("distributionSol bundle failed");
 
   } catch (err) {
     console.log(`Errors when getting data in distributionSol endpoint, ${err}`);
@@ -144,7 +144,6 @@ export const gatherFund = async (req: Request, res: Response) => {
     
     if (!walletSKs?.length) throw Error("There isn't any wallet to fund");
     
-    
     const jitoFee =  Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
 
     const result = await gatherService(
@@ -156,7 +155,8 @@ export const gatherFund = async (req: Request, res: Response) => {
       jitoFee,
     );;
 
-    res.status(ResponseStatus.SUCCESS).send("Gathering fund to fund wallet is success");
+    if (result) res.status(ResponseStatus.SUCCESS).send(result);
+    else throw Error("gatherFund bundle failed");
 
   } catch (err) {
     console.log(`Errors when gathering all wallet fund to fund wallet, ${err}`);
@@ -197,12 +197,16 @@ export const sellByPercentage = async (req: Request, res: Response) => {
       jitoFee,
     );
 
+    if (result) res.status(ResponseStatus.SUCCESS).send(result);
+    else throw Error("sellByPercentage bundle failed");
+
   } catch (err) {
     console.log(`Errors when selling percentage, ${err}`);
     res.status(ResponseStatus.NOT_FOUND).send(`Errors when selling percentage, ${err}`);
   }
 }
 
+// sell tokens by amount
 export const sellByAmount = async (req: Request, res: Response) => {
   try {
     const walletSK = req.body.walletSK;
@@ -232,12 +236,17 @@ export const sellByAmount = async (req: Request, res: Response) => {
       connection,
       jitoFee,
     );
+
+    if (result) res.status(ResponseStatus.SUCCESS).send(result);
+    else throw Error("sellByAmount bundle failed");
+
   } catch (err) {
     console.log(`Errors when selling token by amount, ${err}`);
     res.status(ResponseStatus.NOT_FOUND).send(`Errors when selling token by amount, ${err}`);
   }
 }
 
+// sell all tokens in wallets
 export const sellDumpAll = async (req: Request, res: Response) => {
   try {
     const devSK = await getValue(WalletKey.DEV) ?? null
@@ -250,7 +259,6 @@ export const sellDumpAll = async (req: Request, res: Response) => {
     if (!devSK) throw Error("Dev wallet doesn't exist");
     if (!sniperSK) throw Error("sniper wallet doesn't exist");
     if (!fundSK) throw Error("sniper wallet doesn't exist");
-
 
     let commonAccounts = commonSKs.map(account => Keypair.fromSecretKey(bs58.decode(account)));
     const devAccount = Keypair.fromSecretKey(bs58.decode(devSK)); 
@@ -284,6 +292,9 @@ export const sellDumpAll = async (req: Request, res: Response) => {
       connection,
       jitoFee,
     );
+
+    if (result) res.status(ResponseStatus.SUCCESS).send(result);
+    else throw Error("sellDumpAll bundle failed");
     
   } catch (err) {
     console.log(`Errors when selling dump all, ${err}`);
