@@ -62,7 +62,7 @@ export const jitoWithAxios = async (
     //   return { confirmed: false };
     // }
     // console.log("simulation success");
-    // return { confirmed: true };
+    // return { confirmed: true, content: "Bundle simulation is Ok" };
 
     const endpoints = [
       'https://mainnet.block-engine.jito.wtf/api/v1/bundles',

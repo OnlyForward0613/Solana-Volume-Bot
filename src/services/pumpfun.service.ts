@@ -109,7 +109,7 @@ export const distributionService = async (
         }));
       }
     }));
-    
+
     if (!ixs.length) throw Error("Not exist valuable transfer instruction");
 
     ixs.push(
@@ -147,7 +147,7 @@ export const distributionService = async (
     const simulateResult = await simulateTxBeforeSendBundle(connection, bundleTxs);
     console.log(simulateResult);
     if (!simulateResult) throw Error("Simulation errors when distributiong fund  to wallets");
-    // return simulateResult;
+    // return { confirmed: simulateResult, content: "Distribution simulation is OK" };
 
     let result;
     let count = 0;
@@ -236,7 +236,7 @@ export const gatherService = async (
     const simulateResult = await simulateTxBeforeSendBundle(connection, bundleTxs);
     console.log(simulateResult);
     if (!simulateResult) throw Error("Simulation errors when distributiong fund  to wallets");
-    // return simulateResult;
+    // return { confirmed: simulateResult, content: "GatherFund simulation is OK" };
 
     let result;
     let count = 0;
