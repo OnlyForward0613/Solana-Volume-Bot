@@ -174,8 +174,9 @@ export const sellByPercentage = async (req: Request, res: Response) => {
     const walletSK = req.body.walletSK;
     if (!isValidSolanaPrivateKey([walletSK])) throw Error("Invalid solana address");
     const percentage = req.body.percentage;
-    const commonWalletSKs = await getListRange(WalletKey.COMMON) ?? [];
-    if (!commonWalletSKs?.length || commonWalletSKs.includes(walletSK)) throw Error("the wallet doesn't exsit in common wallets");
+    const walletSKs = await getAllWallets(); 
+    console.log(walletSKs);
+    if (!walletSKs?.length || !walletSKs.includes(walletSK)) throw Error("the wallet doesn't exsit in our wallets");
     const mintSK = await getValue(Key.MINT_PRIVATEKEY) ?? null;
     if (!mintSK) throw Error("Mint address doesn't exist");
     const mintAccount = Keypair.fromSecretKey(bs58.decode(mintSK));

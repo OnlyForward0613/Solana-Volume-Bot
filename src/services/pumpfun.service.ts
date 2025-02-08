@@ -1,6 +1,6 @@
 import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
 import { LaunchTokenType, DistributionType, GatherType, sellType, SellDumpAllType } from "../types";
-import { buildTx, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle } from "../helper/util";
+import { buildTx, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
 import { JITO_FEE, sdk } from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import base58 from "bs58";
@@ -53,6 +53,8 @@ export async function launchTokenService(
         throw Error(createResult.content);
       }
 
+      await sleep(500);
+      
       const secondResult = await sdk.firstBundleAfterCreation(
         devAccount,
         sniperAccount,
@@ -72,7 +74,7 @@ export async function launchTokenService(
       return secondResult;
 
     } else {
-      console.log("Success:", `https://pump.fun/${mint.publicKey.toBase58()}`);
+      console.log("Second Bundle is Success:", `https://pump.fun/${mint.publicKey.toBase58()}`);
       printSPLBalance(connection, mint.publicKey, devAccount.publicKey);
       throw Error("the mint token already exists on Pumpfun");
     }
@@ -322,7 +324,7 @@ export const sellDumpAllService = async (
     );
 
     if (result && result.confirmed) {
-      console.log("Success creation:", `https://pump.fun/${mintPubKey.toBase58()}`);
+      console.log("sellDumpAll bundle is success:", `https://pump.fun/${mintPubKey.toBase58()}`);
       console.log(`https://solscan.io/tx/${result.content}`);
     }
 

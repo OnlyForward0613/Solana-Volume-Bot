@@ -17,7 +17,7 @@ const metadata = {
   "showName": true,
   "createdOn": "https://pump.fun",
   "twitter": "https://x.com/pepa_inu",
-  "telegram": "https://t.me/pepaonsols",
+  "telegram": "https://t.me/regendarystar",
   "website": "https://www.pepa-inu.com"
 }
 
