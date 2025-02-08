@@ -152,7 +152,6 @@ export class PumpFunSDK {
     payer: Keypair,
     sniperAccount: Keypair,
     commonAccounts: Keypair[],
-    sniperAmount: bigint,
     commonAmounts: bigint[],
     mintPubKey: PublicKey, // mint
     jitoFee: number,
@@ -179,7 +178,7 @@ export class PumpFunSDK {
       if (!tokenAmount) throw Error("Errors when getting token balance");
       let sniperTokenAmount = BigInt(Math.floor(tokenAmount * DEFAULT_POW));
 
-      let simulateSniperSellSolAmount = bondingCurveAccount.simulateSell([sniperAmount], globalAccount.feeBasisPoints)[0];
+      let simulateSniperSellSolAmount = bondingCurveAccount.simulateSell([sniperTokenAmount], globalAccount.feeBasisPoints)[0];
       let sniperSellIx = await this.getSellInstructionsBySimulateSellSolAmount(
         sniperAccount.publicKey,
         mintPubKey,

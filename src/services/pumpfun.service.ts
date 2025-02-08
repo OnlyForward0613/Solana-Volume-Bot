@@ -54,12 +54,11 @@ export async function launchTokenService(
       }
 
       await sleep(500);
-      
+
       const secondResult = await sdk.firstBundleAfterCreation(
         devAccount,
         sniperAccount,
         commonAccounts,
-        sniperAmount,
         commonAmounts,
         mint.publicKey, // mint
         jitoFee,
