@@ -185,6 +185,8 @@ export class PumpFunSDK {
         sniperTokenAmount,
         simulateSniperSellSolAmount,
         globalAccount.feeRecipient,
+        SLIPPAGE_BASIS_POINTS,
+        commitment,
       );
 
       sniperSellTx.add(sniperSellIx);
