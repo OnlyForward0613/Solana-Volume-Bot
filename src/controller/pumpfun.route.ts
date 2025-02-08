@@ -75,8 +75,8 @@ export async function launchToken(req: Request, res: Response) {
       jitoFee,
     );
 
-    if (result) res.status(ResponseStatus.SUCCESS).send(result);
-    else throw Error("launchToken bundles failed");
+    if (result.confirmed) res.status(ResponseStatus.SUCCESS).send(result.content);
+    else throw Error(result.content);
 
   } catch (err) {
     console.log(`Errors when launch new token on Pumpfun, ${err}`);
@@ -120,8 +120,8 @@ export async function distributionSol(req: Request, res: Response) {
       jitoFee,
     );
 
-    if (result) res.status(ResponseStatus.SUCCESS).send("Distribution sol is Ok");
-    else throw Error("distributionSol bundle failed");
+    if (result.confirmed) res.status(ResponseStatus.SUCCESS).send(result.content);
+    else throw Error(result.content);
 
   } catch (err) {
     console.log(`Errors when getting data in distributionSol endpoint, ${err}`);
@@ -136,8 +136,8 @@ export const gatherFund = async (req: Request, res: Response) => {
 
     const walletSKs: string[] = [];
 
-    const devWalletSK = await getValue(WalletKey.DEV) ?? null;
-    if (devWalletSK) walletSKs.push(devWalletSK);
+    // const devWalletSK = await getValue(WalletKey.DEV) ?? null;
+    // if (devWalletSK) walletSKs.push(devWalletSK);
 
     const sniperWalletSK = await getValue(WalletKey.SNIPER) ?? null;
     if (sniperWalletSK) walletSKs.push(sniperWalletSK);
@@ -158,8 +158,8 @@ export const gatherFund = async (req: Request, res: Response) => {
       jitoFee,
     );;
 
-    if (result) res.status(ResponseStatus.SUCCESS).send(result);
-    else throw Error("gatherFund bundle failed");
+    if (result.confirmed) res.status(ResponseStatus.SUCCESS).send(result.content);
+    else throw Error(result.content);
 
   } catch (err) {
     console.log(`Errors when gathering all wallet fund to fund wallet, ${err}`);
@@ -200,8 +200,8 @@ export const sellByPercentage = async (req: Request, res: Response) => {
       jitoFee,
     );
 
-    if (result) res.status(ResponseStatus.SUCCESS).send(result);
-    else throw Error("sellByPercentage bundle failed");
+    if (result.confirmed) res.status(ResponseStatus.SUCCESS).send(result.content);
+    else throw Error(result.content);
 
   } catch (err) {
     console.log(`Errors when selling percentage, ${err}`);
@@ -240,8 +240,8 @@ export const sellByAmount = async (req: Request, res: Response) => {
       jitoFee,
     );
 
-    if (result) res.status(ResponseStatus.SUCCESS).send(result);
-    else throw Error("sellByAmount bundle failed");
+    if (result.confirmed) res.status(ResponseStatus.SUCCESS).send(result.content);
+    else throw Error(result.content);
 
   } catch (err) {
     console.log(`Errors when selling token by amount, ${err}`);
@@ -296,8 +296,8 @@ export const sellDumpAll = async (req: Request, res: Response) => {
       jitoFee,
     );
 
-    if (result) res.status(ResponseStatus.SUCCESS).send(result);
-    else throw Error("sellDumpAll bundle failed");
+    if (result.confirmed) res.status(ResponseStatus.SUCCESS).send(result.content);
+    else throw Error(result.content);
 
   } catch (err) {
     console.log(`Errors when selling dump all, ${err}`);

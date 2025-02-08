@@ -30,34 +30,10 @@ export const jitoWithAxios = async (
   transactions: VersionedTransaction[], 
   latestBlockhash: BlockhashWithExpiryBlockHeight
 ) => {
-
-  console.log(`Starting Jito transaction execution... transaction count: ${transactions.length}`);
-
-  // const jitoFeeWallet = getJitoTipWallet();
-  // console.log(`Selected Jito fee wallet: ${jitoFeeWallet.toBase58()}`);
-
   try {
-    // console.log(`Calculated fee: ${JITO_FEE / LAMPORTS_PER_SOL} sol`);
-    // const jitTipTxFeeMessage = new TransactionMessage({
-    //   payerKey: payer.publicKey,
-    //   recentBlockhash: latestBlockhash.blockhash,
-    //   instructions: [
-    //     SystemProgram.transfer({
-    //       fromPubkey: payer.publicKey,
-    //       toPubkey: jitoFeeWallet,
-    //       lamports: JITO_FEE,
-    //     }),
-    //   ],
-    // }).compileToV0Message();
-
-    // const jitoFeeTx = new VersionedTransaction(jitTipTxFeeMessage);
-    // jitoFeeTx.sign([payer]);
-
-
-    // const jitoTxsignature = base58.encode(jitoFeeTx.signatures[0]);
-
-    // // Serialize the transactions once here
-    // const serializedjitoFeeTx = base58.encode(jitoFeeTx.serialize());
+    
+      console.log(`Starting Jito transaction execution... transaction count: ${transactions.length}`);
+   
     const jitoTxsignature = base58.encode(transactions[0].signatures[0]);
     const serializedTransactions: string[] = [];
     for (let i = 0; i < transactions.length; i++) {
@@ -109,13 +85,11 @@ export const jitoWithAxios = async (
 
     const results = await Promise.all(requests.map((p) => p.catch((e) => e)));
     
-
     const successfulResults = results.filter((result) => !(result instanceof Error));
 
     if (successfulResults.length > 0) {
       console.log(`Successful response`);
-      // console.log(`Confirming jito transaction...`);
-
+      console.log(`Confirming jito transaction...`);
       const confirmation = await connection.confirmTransaction(
         {
           signature: jitoTxsignature,
@@ -125,21 +99,23 @@ export const jitoWithAxios = async (
         "processed",
       );
 
-      console.log(confirmation)
+      console.log(confirmation);
 
-      return { confirmed: !confirmation.value.err, jitoTxsignature };
+      return { confirmed: !confirmation.value.err, content: jitoTxsignature };
+
     } else {
       console.log(`No successful responses received for jito`);
     }
 
-    return { confirmed: false };
+    return { confirmed: false, content: "Jito bundle is failed" };
+
   } catch (error) {
 
     if (error instanceof AxiosError) {
       console.log('Failed to execute jito transaction');
     }
     console.log('Error during transaction execution', error);
-    return { confirmed: false };
+    return { confirmed: false, content: "Jito bundle was failed"};
   }
 }
 
