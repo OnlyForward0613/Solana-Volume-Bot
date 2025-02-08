@@ -36,7 +36,8 @@ import { BondingCurveAccount } from "./bondingCurveAccount";
 import { GlobalAccount } from "./globalAccount";
 import { BN } from "bn.js";
 import { getJitoTipWallet, jitoTipIx, jitoWithAxios } from "../helper/jitoWithAxios";
-import { chunk } from "lodash";
+import { chunk, clone } from "lodash";
+import { log } from "console";
 
 
 const PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
@@ -152,7 +153,7 @@ export class PumpFunSDK {
     payer: Keypair,
     sniperAccount: Keypair,
     commonAccounts: Keypair[],
-    commonAmounts: bigint[],
+    commonSolAmounts: bigint[],
     mintPubKey: PublicKey, // mint
     jitoFee: number,
     connection: Connection,
@@ -178,11 +179,11 @@ export class PumpFunSDK {
       if (!tokenAmount) throw Error("Errors when getting token balance");
       let sniperTokenAmount = BigInt(Math.floor(tokenAmount * DEFAULT_POW));
 
-      console.log("sniperTokenAmount", sniperTokenAmount);
-
-      let simulateSniperSellSolAmount = bondingCurveAccount.simulateSell([sniperTokenAmount], globalAccount.feeBasisPoints)[0];
       
+      let simulateSniperSellSolAmount = bondingCurveAccount.simulateSell([sniperTokenAmount], globalAccount.feeBasisPoints)[0];
+      console.log("feeBasicPoints", globalAccount.feeBasisPoints);
       console.log("sniperTokenAmount", sniperTokenAmount);
+      console.log("simulateSniperSellSolAmount", simulateSniperSellSolAmount);
       
       let sniperSellIx = await this.getSellInstructionsBySimulateSellSolAmount(
         sniperAccount.publicKey,
@@ -210,7 +211,10 @@ export class PumpFunSDK {
       if (!sniperSellVersionedTx) throw Error("Errors when sell tokens in sniper wallet");
       bundleTxs.push(sniperSellVersionedTx);
 
-      let simulateCommonBuyTokenAmounts = bondingCurveAccount.simulateBuy(commonAmounts);
+
+      let simulateCommonBuyTokenAmounts = bondingCurveAccount.simulateBuy(commonSolAmounts);
+      console.log("commonSolAmounts", commonSolAmounts);
+      console.log("simulateCommonBuyTokenAmounts", simulateCommonBuyTokenAmounts);
 
       // let commonBuyIxs = await Promise.all(commonAccounts.map(async (buyer, index) => {
       //   return await this.getBuyInstructionsBySimulateBuyTokenAmount(
@@ -222,42 +226,60 @@ export class PumpFunSDK {
       //     SLIPPAGE_BASIS_POINTS,
       //   );
       // }));
+
       let commonBuyIxs: Transaction[] = [];
       for (let i = 0; i < commonAccounts.length; i++) {
-        commonBuyIxs.push(await this.getBuyInstructionsBySimulateBuyTokenAmount(
+        let buyIx = await this.getBuyInstructionsBySimulateBuyTokenAmount(
           commonAccounts[i].publicKey,
           mintPubKey,
           simulateCommonBuyTokenAmounts[i],
-          commonAmounts[i],
+          commonSolAmounts[i],
           globalAccount.feeRecipient,
           SLIPPAGE_BASIS_POINTS,
-        ))
+        );
+        commonBuyIxs.push(buyIx);
       }
 
       let chunkCommonBuyIxs = chunk(commonBuyIxs, ixChunkLimit);
       let chunkCommonAccounts = chunk(commonAccounts, ixChunkLimit);
 
-      await Promise.all(chunkCommonBuyIxs.map(async (buyIxs, index) => {
-        let newTx = (new Transaction).add(...buyIxs);
+      // await Promise.all(chunkCommonBuyIxs.map(async (buyIxs, index) => {
+      //   let newTx = (new Transaction).add(...buyIxs);
+      //   let newVersionedTx = await buildTx(
+      //     connection,
+      //     newTx,
+      //     payer.publicKey,
+      //     [payer, ...chunkCommonAccounts[index]],
+      //     latestBlockhash
+      //   );
+      //   if (!newVersionedTx) throw Error("Errors when buy tokens in common wallets");
+      //   bundleTxs.push(newVersionedTx);
+      // }));
+      for(let i = 0; i < chunkCommonBuyIxs.length; i++) {
+        let newTx = (new Transaction).add(...chunkCommonBuyIxs[i]);
         let newVersionedTx = await buildTx(
           connection,
           newTx,
           payer.publicKey,
-          [payer, ...chunkCommonAccounts[index]],
-          latestBlockhash
+          [payer, ...chunkCommonAccounts[i]],
+          latestBlockhash,
         );
         if (!newVersionedTx) throw Error("Errors when buy tokens in common wallets");
         bundleTxs.push(newVersionedTx);
-      }));
+      }
 
+      console.log(bundleTxs);
+        
       let result;
       let count = 0;
+
       while (true) {
         result = await jitoWithAxios(bundleTxs, latestBlockhash);
         if (result.confirmed) break;
         count++;
-        if (count > 3) throw Error("Bundle failed");
+        if (count > 0) throw Error("Bundle failed");
       }
+
       return result;
 
     } catch (err) {
@@ -376,6 +398,7 @@ export class PumpFunSDK {
       // bundleTxs.push(initialVersionedTx);
       
       let simulateSniperSellSolAmounts = bondingCurveAccount.simulateSell(sellTokenAmounts, globalAccount.feeBasisPoints);
+     
       let sellIxs = await Promise.all(sellAccounts.map(async (seller, index) => {
         return await this.getSellInstructionsBySimulateSellSolAmount(
           seller.publicKey,
@@ -560,6 +583,8 @@ export class PumpFunSDK {
       buyAmountSol,
       slippageBasisPoints
     );
+
+    console.log(buyAmountSol, "=> ", buyAmountWithSlippage);
 
     return await this.getBuyInstructions(
       buyer,

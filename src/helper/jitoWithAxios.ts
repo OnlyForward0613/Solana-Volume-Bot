@@ -97,7 +97,7 @@ export const jitoWithAxios = async (
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
           blockhash: latestBlockhash.blockhash,
         },
-        "confirmed",
+        "processed",
       );
 
       console.log(confirmation);

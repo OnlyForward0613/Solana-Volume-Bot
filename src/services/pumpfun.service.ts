@@ -10,7 +10,7 @@ import { Transaction } from "@solana/web3.js";
 import { TransactionInstruction } from "@solana/web3.js";
 import { Connection } from "@solana/web3.js";
 
-const SLIPPAGE_BASIS_POINTS = 500n;
+const SLIPPAGE_BASIS_POINTS = 1000n;
 
 // launch new token on solana based on mint address
 export async function launchTokenService(
@@ -73,6 +73,26 @@ export async function launchTokenService(
       return secondResult;
 
     } else {
+
+      let globalAccount = await sdk.getGlobalAccount();
+      if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
+
+      const secondResult = await sdk.firstBundleAfterCreation(
+        devAccount,
+        sniperAccount,
+        commonAccounts,
+        commonAmounts,
+        mint.publicKey, // mint
+        jitoFee,
+        connection,
+        globalAccount,
+        SLIPPAGE_BASIS_POINTS,
+      );
+      if (secondResult.confirmed) {
+        console.log(`https://solscan.io/tx/${secondResult.content}`)
+        console.log(secondResult.content);
+      } 
+      return secondResult;
       console.log("The token already exists:", `https://pump.fun/${mint.publicKey.toBase58()}`);
       printSPLBalance(connection, mint.publicKey, devAccount.publicKey);
       throw Error("the mint token already exists on Pumpfun");
