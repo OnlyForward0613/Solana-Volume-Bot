@@ -48,7 +48,7 @@ export async function launchTokenService(
 
       if (createResult && createResult.confirmed) {
         console.log("Success creation:", `https://pump.fun/${mint.publicKey.toBase58()}`);
-        console.log(`https://explorer.jito.wtf/bundle/${createResult.jitoTxsignature}`)
+        console.log(`https://solscan.io/tx/${createResult.jitoTxsignature}`)
         console.log(`jitoTxSignature: ${createResult.jitoTxsignature}`);
       } else {
         throw Error("Error when creating new token");
@@ -67,7 +67,7 @@ export async function launchTokenService(
         SLIPPAGE_BASIS_POINTS,
       );
       if (secondResult && secondResult.confirmed) {
-        console.log(`https://explorer.jito.wtf/bundle/${secondResult?.jitoTxsignature}`)
+        console.log(`https://solscan.io/tx/${secondResult?.jitoTxsignature}`)
         console.log(secondResult.jitoTxsignature);
       }
       return secondResult?.jitoTxsignature;
@@ -161,7 +161,7 @@ export const distributionService = async (
       count++;
       if (count > 3) throw Error("Bundle failed");
     }
-    console.log(`https://explorer.jito.wtf/bundle/${result?.jitoTxsignature}`)
+    console.log(`https://solscan.io/tx/${result?.jitoTxsignature}`)
     return result?.jitoTxsignature;
 
   } catch (err) {
@@ -209,8 +209,8 @@ export const gatherService = async (
 
     await Promise.all(walletAccounts.map((account, index) => {
       ixs.push(SystemProgram.transfer({
-        fromPubkey: fundAccount.publicKey,
-        toPubkey: account.publicKey,
+        fromPubkey: account.publicKey,
+        toPubkey: fundAccount.publicKey,
         lamports: solAmounts[index]
       }));
     }))
@@ -226,11 +226,12 @@ export const gatherService = async (
       tx.instructions.map((ix) => {
         accounts.push(...ix.keys);
       });
+      console.log(accounts);
       const versionedTx = await buildTx(
         connection,
         tx,
         fundAccount.publicKey,
-        [fundAccount],
+        [fundAccount, ...accounts],
         latestBlockhash
       )
       if (!versionedTx) throw Error("Errors when distributing fund to wallets");
@@ -257,7 +258,7 @@ export const gatherService = async (
     }
 
     if (result && result.confirmed) {
-      console.log(`https://explorer.jito.wtf/bundle/${result.jitoTxsignature}`);
+      console.log(`https://solscan.io/tx/${result.jitoTxsignature}`);
     }
     
     return result?.jitoTxsignature;
@@ -294,7 +295,7 @@ export const sellService = async (
 
     if (result && result.confirmed) {
       console.log("Success creation:", `https://pump.fun/${mintPubKey.toBase58()}`);
-      console.log(`https://explorer.jito.wtf/bundle/${result?.jitoTxsignature}`);
+      console.log(`https://solscan.io/tx/${result?.jitoTxsignature}`);
     }
 
     return result?.jitoTxsignature;
@@ -333,7 +334,7 @@ export const sellDumpAllService = async (
 
     if (result && result.confirmed) {
       console.log("Success creation:", `https://pump.fun/${mintPubKey.toBase58()}`);
-      console.log(`https://explorer.jito.wtf/bundle/${result?.jitoTxsignature}`);
+      console.log(`https://solscan.io/tx/${result?.jitoTxsignature}`);
     }
 
     return result?.jitoTxsignature;

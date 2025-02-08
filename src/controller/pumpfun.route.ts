@@ -95,6 +95,8 @@ export async function distributionSol(req: Request, res: Response) {
     const commonWalletSKs: string[] = await getListRange(WalletKey.COMMON) ?? [];
     const walletSKs: string[] = [];
     const solAmounts: number[] = [];
+    console.log(commonAmounts);
+    console.log(commonWalletSKs);
     if (commonAmounts.length > 0 && commonAmounts.length != commonWalletSKs?.length) throw Error("Insufficent input of common wallets");
     if (!fundWalletSK) throw Error("Doesn't exist fund wallet, please import fund wallet info");
     if (sniperAmount > 0 && !sniperWalletSK) throw Error("Doesn't exist sniper wallet, please import sniper wallet");
