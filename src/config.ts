@@ -10,7 +10,7 @@ export const RPC_WEBSOCKET_ENDPOINT = "wss://mainnet.helius-rpc.com/?api-key=91d
 export const PRIVATE_RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=662b2530-1747-4909-a65a-8ec18978b03a";
 
 export const COMMITMENT_LEVEL = 'confirmed' as Commitment;
-export const connection = new Connection(RPC_ENDPOINT, {
+export let connection = new Connection(RPC_ENDPOINT, {
   wsEndpoint: RPC_WEBSOCKET_ENDPOINT
 });
 
@@ -21,11 +21,11 @@ export const private_connection = new Connection(PRIVATE_RPC_ENDPOINT, {
   wsEndpoint: RPC_WEBSOCKET_ENDPOINT
 });
 
-export const getProvider = () => {
+export const getProvider = (connection: Connection) => {
   let wallet = new NodeWallet(new Keypair());
   return new AnchorProvider(connection, wallet, { commitment: COMMITMENT_LEVEL })
 }
-export const anchorProvider = getProvider();
+export let anchorProvider = getProvider(connection);
 
 // jito
 export const BLOCKENGINE_URL="tokyo.mainnet.block-engine.jito.wtf"
@@ -35,7 +35,7 @@ export const JITO_FEE = 2000000; // 0.002 sol
 
 // pumpfun sdk
 export const global_mint = new PublicKey("p89evAyzjd9fphjJx7G3RFA48sbZdpGEppRcfRNpump");
-export const sdk = new PumpFunSDK(anchorProvider);
+export let sdk = new PumpFunSDK(anchorProvider);
 
 
 // redis server setting
@@ -50,5 +50,13 @@ export const environment = process.env.NODE_ENV || 'development'
 
 // wallet count limit
 export const MAX_COMMON_WALLETS_NUMS = 20;
+
+export const configNetwork = (RPC_ENDPOINT: string, RPC_WEBSOCKET_ENDPOINT: string ) => {
+  connection = new Connection(RPC_ENDPOINT, {
+    wsEndpoint: RPC_WEBSOCKET_ENDPOINT
+  });
+  anchorProvider = getProvider(connection);
+  sdk = new PumpFunSDK(anchorProvider)
+}
 
 
