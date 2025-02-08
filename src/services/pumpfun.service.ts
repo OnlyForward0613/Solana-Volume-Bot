@@ -94,19 +94,20 @@ export const distributionService = async (
   connection: Connection,
   jitoFee: number = JITO_FEE,
 ) => {
-
   try {
     const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletSK));
-
     const walletAccounts = walletSKs.map(privateKey => Keypair.fromSecretKey(base58.decode(privateKey)));
-    
+    console.log(walletSKs);
+    console.log(`jito fee: ${jitoFee}`);
+
     let ixs: TransactionInstruction[] = [];
     await Promise.all(walletAccounts.map((account, index) => {
+      console.log(`distribution, wallet${index}: ${account.publicKey.toBase58()}, ${BigInt(Math.floor(LAMPORTS_PER_SOL * solAmounts[index]))}`);
       if (solAmounts[index] > 0) {
         ixs.push(SystemProgram.transfer({
           fromPubkey: fundAccount.publicKey,
           toPubkey: account.publicKey,
-          lamports: BigInt(Math.floor(LAMPORTS_PER_SOL * solAmounts[index]))
+          lamports: BigInt(Math.floor(LAMPORTS_PER_SOL * solAmounts[index])),
         }));
       }
     }));
@@ -125,6 +126,7 @@ export const distributionService = async (
 
     // we will include several tranfer instructions in one transaction, at least 5 insturctions
     const chunkIxs = chunk(ixs, 5);
+    console.log(chunkIxs);
 
     const latestBlockhash = await connection.getLatestBlockhash();
 
@@ -149,7 +151,7 @@ export const distributionService = async (
     const simulateResult = await simulateTxBeforeSendBundle(connection, bundleTxs);
     console.log(simulateResult);
     if (!simulateResult) throw Error("Simulation errors when distributiong fund  to wallets");
-    // return simulateResult;
+    return simulateResult;
 
     let result;
     let count = 0;
@@ -204,7 +206,7 @@ export const gatherService = async (
         lamports: jitoFee,
       })
     );
-    
+
     await Promise.all(walletAccounts.map((account, index) => {
       ixs.push(SystemProgram.transfer({
         fromPubkey: fundAccount.publicKey,
