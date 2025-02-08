@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { getAllWallets } from "../cache/repository/WalletCache";
 import { addToList, deleteElementFromListWithIndex, deleteElementFromListWithValue, deleteKey, getCommonWalletsCounts, getHash, getJson, getListRange, getValue, keyExists, setHash, setJson, setList, setValue } from "../cache/query";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { AmountType, Key, NetworkType, WalletKey, WalletType } from "../cache/keys";
 import { MAX_COMMON_WALLETS_NUMS} from "../config";
@@ -204,7 +204,7 @@ export const setNetwork = async (req: Request, res: Response) => {
       await setValue(NetworkType.RPC_WEBSOCKET_ENDPOINT, RPC_WEBSOCKET_ENDPOINT);
     }
     if (JITO_FEE) {
-      await setValue(NetworkType.JITO_FEE, JITO_FEE);
+      await setValue(NetworkType.JITO_FEE, Math.floor(JITO_FEE * LAMPORTS_PER_SOL));
     }
 
     res.status(ResponseStatus.SUCCESS).send("Setting network configuration is OK");

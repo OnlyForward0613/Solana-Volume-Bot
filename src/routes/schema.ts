@@ -20,7 +20,7 @@ export default {
     profilePicUrl: Joi.string().optional().uri(),
   }),
   distributionToWallets: Joi.object().keys({
-    sniperAmount: Joi.number().required().min(0),
+    sniperAmount: Joi.number().optional().min(0),
     commonAmounts: Joi.array().required().items(Joi.number().min(0)),
   }),
   sellByPercentage: Joi.object().keys({

@@ -90,19 +90,20 @@ export async function distributionSol(req: Request, res: Response) {
       sniperAmount,
       commonAmounts
     } = req.body;
-    const fundWalletSK = await getValue(WalletKey.FUND) ?? null;
-    const sniperWalletSK = await getValue(WalletKey.SNIPER) ?? null;
+    const fundWalletSK = await getValue(WalletKey.FUND) ?? "";
+    const sniperWalletSK = await getValue(WalletKey.SNIPER) ?? "";
     const commonWalletSKs: string[] = await getListRange(WalletKey.COMMON) ?? [];
-
     const walletSKs: string[] = [];
     const solAmounts: number[] = [];
     if (commonAmounts.length > 0 && commonAmounts.length != commonWalletSKs?.length) throw Error("Insufficent input of common wallets");
     if (!fundWalletSK) throw Error("Doesn't exist fund wallet, please import fund wallet info");
-    if (!sniperWalletSK) throw Error("Doesn't exist sniper wallet, please import sniper wallet");
-    else {
+    if (sniperAmount > 0 && !sniperWalletSK) throw Error("Doesn't exist sniper wallet, please import sniper wallet");
+    else if (sniperAmount > 0) {
       solAmounts.push(sniperAmount);
+      walletSKs.push(sniperWalletSK);
     }
     solAmounts.push(...commonAmounts);
+    walletSKs.push(...commonWalletSKs);
 
     if (!solAmounts.length) throw Error("Any wallet doesn't exsit to fund");
     const jitoFee =  Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
@@ -295,7 +296,7 @@ export const sellDumpAll = async (req: Request, res: Response) => {
 
     if (result) res.status(ResponseStatus.SUCCESS).send(result);
     else throw Error("sellDumpAll bundle failed");
-    
+
   } catch (err) {
     console.log(`Errors when selling dump all, ${err}`);
     res.status(ResponseStatus.NOT_FOUND).send(`Errors when selling dump all, ${err}`);
