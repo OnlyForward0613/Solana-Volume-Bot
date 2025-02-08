@@ -9,6 +9,7 @@ import { connection, JITO_FEE } from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import { getSPLBalance, isFundSufficent, isValidSolanaPrivateKey } from "../helper/util";
 import { DEFAULT_POW } from "../pumpfun/sdk";
+import { getAllWallets } from "../cache/repository/WalletCache";
 
 export async function launchToken(req: Request, res: Response) {
   try {
@@ -215,8 +216,9 @@ export const sellByAmount = async (req: Request, res: Response) => {
     const walletSK = req.body.walletSK;
     if (!isValidSolanaPrivateKey([walletSK])) throw Error("Invalid solana address");
     const tokenAmount = req.body.tokenAmount;
-    const commonWalletSKs = await getListRange(WalletKey.COMMON) ?? [];
-    if (!commonWalletSKs?.length || commonWalletSKs.includes(walletSK)) throw Error("the wallet doesn't exsit in common wallets");
+    const walletSKs = await getAllWallets(); 
+    console.log(walletSKs);
+    if (!walletSKs?.length || !walletSKs.includes(walletSK)) throw Error("the wallet doesn't exsit in our wallets");
     const mintSK = await getValue(Key.MINT_PRIVATEKEY) ?? null;
     if (!mintSK) throw Error("Mint address doesn't exist");
     const mintAccount = Keypair.fromSecretKey(bs58.decode(mintSK));
@@ -226,6 +228,9 @@ export const sellByAmount = async (req: Request, res: Response) => {
       mintAccount.publicKey,
       walletAccount.publicKey,
     );
+
+    console.log(`realAmount: ${tokenFloatAmount}, tokenAmount: ${tokenAmount}`);
+
     if (!tokenFloatAmount || tokenFloatAmount < tokenAmount) throw Error("Don't have sufficent token in the wallet");
    
     const jitoFee = Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;

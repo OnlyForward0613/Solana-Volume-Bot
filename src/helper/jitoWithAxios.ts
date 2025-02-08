@@ -56,6 +56,7 @@ export const jitoWithAxios = async (
     console.log("signatures");
     console.log(signatures);
 
+    // Simulate bundle
     // const simultationResult: any = await simulateTxBeforeSendBundle(connection, [...transactions]);
     // if (!simultationResult) {
     //   console.log("simulation error. plz try again");
