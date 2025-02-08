@@ -9,7 +9,7 @@ export const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=662b2530-17
 export const RPC_WEBSOCKET_ENDPOINT = "wss://mainnet.helius-rpc.com/?api-key=91d51098-361c-43de-a61d-e691cac6f43b";
 export const PRIVATE_RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=662b2530-1747-4909-a65a-8ec18978b03a";
 
-export const COMMITMENT_LEVEL = 'confirmed' as Commitment;
+export const COMMITMENT_LEVEL = 'processed' as Commitment;
 export let connection = new Connection(RPC_ENDPOINT, {
   wsEndpoint: RPC_WEBSOCKET_ENDPOINT
 });
