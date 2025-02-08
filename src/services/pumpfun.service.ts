@@ -73,7 +73,7 @@ export async function launchTokenService(
       return secondResult;
 
     } else {
-      console.log("Second Bundle is Success:", `https://pump.fun/${mint.publicKey.toBase58()}`);
+      console.log("The token already exists:", `https://pump.fun/${mint.publicKey.toBase58()}`);
       printSPLBalance(connection, mint.publicKey, devAccount.publicKey);
       throw Error("the mint token already exists on Pumpfun");
     }

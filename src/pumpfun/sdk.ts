@@ -178,7 +178,12 @@ export class PumpFunSDK {
       if (!tokenAmount) throw Error("Errors when getting token balance");
       let sniperTokenAmount = BigInt(Math.floor(tokenAmount * DEFAULT_POW));
 
+      console.log("sniperTokenAmount", sniperTokenAmount);
+
       let simulateSniperSellSolAmount = bondingCurveAccount.simulateSell([sniperTokenAmount], globalAccount.feeBasisPoints)[0];
+      
+      console.log("sniperTokenAmount", sniperTokenAmount);
+      
       let sniperSellIx = await this.getSellInstructionsBySimulateSellSolAmount(
         sniperAccount.publicKey,
         mintPubKey,
@@ -207,16 +212,27 @@ export class PumpFunSDK {
 
       let simulateCommonBuyTokenAmounts = bondingCurveAccount.simulateBuy(commonAmounts);
 
-      let commonBuyIxs = await Promise.all(commonAccounts.map(async (buyer, index) => {
-        return await this.getBuyInstructionsBySimulateBuyTokenAmount(
-          buyer.publicKey,
+      // let commonBuyIxs = await Promise.all(commonAccounts.map(async (buyer, index) => {
+      //   return await this.getBuyInstructionsBySimulateBuyTokenAmount(
+      //     buyer.publicKey,
+      //     mintPubKey,
+      //     simulateCommonBuyTokenAmounts[index],
+      //     commonAmounts[index],
+      //     globalAccount.feeRecipient,
+      //     SLIPPAGE_BASIS_POINTS,
+      //   );
+      // }));
+      let commonBuyIxs: Transaction[] = [];
+      for (let i = 0; i < commonAccounts.length; i++) {
+        commonBuyIxs.push(await this.getBuyInstructionsBySimulateBuyTokenAmount(
+          commonAccounts[i].publicKey,
           mintPubKey,
-          simulateCommonBuyTokenAmounts[index],
-          commonAmounts[index],
+          simulateCommonBuyTokenAmounts[i],
+          commonAmounts[i],
           globalAccount.feeRecipient,
           SLIPPAGE_BASIS_POINTS,
-        );
-      }));
+        ))
+      }
 
       let chunkCommonBuyIxs = chunk(commonBuyIxs, ixChunkLimit);
       let chunkCommonAccounts = chunk(commonAccounts, ixChunkLimit);
@@ -424,7 +440,7 @@ export class PumpFunSDK {
       mint,
       feeRecipient,
       sellTokenAmount,
-      sellAmountWithSlippage
+      0n, //sellAmountWithSlippage
     );
   }
 
