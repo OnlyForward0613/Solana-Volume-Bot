@@ -48,75 +48,79 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ) {
-    
-    let latestBlockhash = await this.connection.getLatestBlockhash();
+    try {
+      let latestBlockhash = await this.connection.getLatestBlockhash();
 
-    let createTx = await this.getCreateInstructions(
-      creator.publicKey,
-      tokenInfo.name,
-      tokenInfo.symbol,
-      tokenInfo.metadataUri,
-      mint
-    );
+      let createTx = await this.getCreateInstructions(
+        creator.publicKey,
+        tokenInfo.name,
+        tokenInfo.symbol,
+        tokenInfo.metadataUri,
+        mint
+      );
 
-    let newTx = new Transaction().add(createTx);
+      let newTx = new Transaction().add(createTx);
 
-    let tipIx = jitoTipIx(creator.publicKey, jitoFee);
+      let tipIx = jitoTipIx(creator.publicKey, jitoFee);
 
-    newTx.add(tipIx);
-    
-    let createVersionedTx = await buildTx(
-      this.connection,
-      newTx,
-      creator.publicKey,
-      [creator, mint],
-      latestBlockhash,
-      priorityFees,
-      commitment,
-      finality
-    );
+      newTx.add(tipIx);
+      
+      let createVersionedTx = await buildTx(
+        this.connection,
+        newTx,
+        creator.publicKey,
+        [creator, mint],
+        latestBlockhash,
+        priorityFees,
+        commitment,
+        finality
+      );
+      
+      if (!createVersionedTx) throw Error("create transation was empty");
 
-    let buyTxs: VersionedTransaction[] = [];
-    let buySimulateAmountsSol = this.simulateBuys(buyAmountsSol);
-    console.log(buySimulateAmountsSol);
+      let bundleTxs: VersionedTransaction[] = [createVersionedTx];
+      let buySimulateAmountsSol = this.simulateBuys(buyAmountsSol);
+      console.log(buySimulateAmountsSol);
 
-    if (buyAmountsSol.length > 0) {
-      for (let i = 0; i < buyers.length; i++) {
-        let buyTx = await this.getBuyInstructionsBySolAmount(
-          buyers[i].publicKey,
-          mint.publicKey,
-          buySimulateAmountsSol[i].tokenAmount,
-          buySimulateAmountsSol[i].solAmount,
-          slippageBasisPoints,
-          commitment
-        );
+      if (buyAmountsSol.length > 0) {
+        for (let i = 0; i < buyers.length; i++) {
+          let buyTx = await this.getBuyInstructionsBySolAmount( // using slippage buy
+            buyers[i].publicKey,
+            mint.publicKey,
+            buySimulateAmountsSol[i].tokenAmount,
+            buySimulateAmountsSol[i].solAmount,
+            slippageBasisPoints,
+            commitment
+          );
 
-        const buyVersionedTx = await buildTx(
-          this.connection,
-          buyTx,
-          buyers[i].publicKey,
-          [buyers[i]],
-          latestBlockhash,
-          priorityFees,
-          commitment,
-          finality
-        );
-        if (buyVersionedTx) buyTxs.push(buyVersionedTx);
+          const buyVersionedTx = await buildTx(
+            this.connection,
+            buyTx,
+            buyers[i].publicKey,
+            [buyers[i]],
+            latestBlockhash,
+            priorityFees,
+            commitment,
+            finality
+          );
+          if (buyVersionedTx) bundleTxs.push(buyVersionedTx);
+        }
       }
-    }
 
-    let result
-    let count = 0;
-    if (createVersionedTx) {
+      let result
+      let count = 0;
       while (true) {
-        result = await jitoWithAxios([createVersionedTx, ...buyTxs], latestBlockhash);
+        result = await jitoWithAxios(bundleTxs, latestBlockhash);
         if (result.confirmed) break;
         count++;
-        if (count > 3) throw Error("Bundle failed");
+        if (count > 3) throw Error("SendBundle Count exceeded 3 times");
       }
+      return result;
+    } catch (err) {
+      console.log(`Creating token bundle was failed, ${err}`);
+      return { confirmed: false, content: `Creating token bundle was failed, ${err}`};
     }
-    return result;
-  }
+  } 
 
   async sellOne(
     payer: Keypair,
@@ -154,6 +158,7 @@ export class PumpFunSDK {
         sniperTokenAmount,
         simulateSellSolAmount,
         globalAccount.feeRecipient,
+        SLIPPAGE_BASIS_POINTS,
       );
 
       initialTx.add(sellIx);
@@ -178,12 +183,13 @@ export class PumpFunSDK {
         result = await jitoWithAxios(bundleTxs, latestBlockhash);
         if (result.confirmed) break;
         count++;
-        if (count > 3) throw Error("Bundle failed");
+        if (count > 3) throw Error("SendBundle count exceeded 3 times");
       }
       return result;
 
     } catch (err) {
-      console.log("Errors when selling tokens in one wallet")
+      console.log(`SellOneBunlde was failed, ${err}`);
+      return { confirmed: false, content: `SellOneBunlde was failed, ${err}` };
     }
   }
   
@@ -262,13 +268,13 @@ export class PumpFunSDK {
         result = await jitoWithAxios(bundleTxs, latestBlockhash);
         if (result.confirmed) break;
         count++;
-        if (count > 3) throw Error("Bundle failed");
+        if (count > 3) throw Error("SendBundle count exceeded 3 times");
       }
       return result;
 
     } catch (err) {
-      console.log(`Errors when dump selling, ${err}`);
-      return null;
+      console.log(`DumpSell bundle was failed, ${err}`);
+      return { confirmed: false, content: `DumpSell bundle was failed, ${err}` }
     }
   }
 
@@ -288,7 +294,6 @@ export class PumpFunSDK {
     finality: Finality = DEFAULT_FINALITY
   ) {
     try {
-
       let bondingCurveAccount = await this.getBondingCurveAccount(
         mintPubKey,
         commitment
@@ -358,7 +363,7 @@ export class PumpFunSDK {
         bundleTxs.push(newVersionedTx);
       }));
 
-      let result
+      let result;
       let count = 0;
       while (true) {
         result = await jitoWithAxios(bundleTxs, latestBlockhash);
@@ -369,7 +374,8 @@ export class PumpFunSDK {
       return result;
 
     } catch (err) {
-      return null;
+      console.log(`Second bundle  was failed after creation bundle, ${err}`);
+      return { confirmed: false, content: `Second bundle  was failed after creation bundle was success, ${err}`};
     }
   }
 
@@ -543,6 +549,7 @@ export class PumpFunSDK {
       FEE_RECIPICEMT,
       buyAmountToken,
       buyAmountWithSlippage,
+      commitment,
     );
   }
 
