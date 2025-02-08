@@ -122,6 +122,108 @@ export class PumpFunSDK {
     }
   } 
 
+  
+  async firstBundleAfterCreation(
+    payer: Keypair,
+    sniperAccount: Keypair,
+    commonAccounts: Keypair[],
+    sniperAmount: bigint,
+    commonAmounts: bigint[],
+    mintPubKey: PublicKey, // mint
+    jitoFee: number,
+    connection: Connection,
+    globalAccount: GlobalAccount,
+    SLIPPAGE_BASIS_POINTS: bigint,
+    priorityFees?: PriorityFee,
+    commitment: Commitment = DEFAULT_COMMITMENT,
+    finality: Finality = DEFAULT_FINALITY
+  ) {
+    try {
+      let bondingCurveAccount = await this.getBondingCurveAccount(
+        mintPubKey,
+        commitment
+      );
+      if (!bondingCurveAccount) throw Error("Errors when getting bondCurveAccount. It seems like there are some errors in rpc, or didn't create token yet");
+
+      let latestBlockhash = await this.connection.getLatestBlockhash();
+
+      let sniperSellTx = new Transaction();
+      const bundleTxs: VersionedTransaction[] = [];
+
+      let tokenAmount = await getSPLBalance(connection, mintPubKey, sniperAccount.publicKey);
+      if (!tokenAmount) throw Error("Errors when getting token balance");
+      let sniperTokenAmount = BigInt(Math.floor(tokenAmount * DEFAULT_POW));
+
+      let simulateSniperSellSolAmount = bondingCurveAccount.simulateSell([sniperAmount], globalAccount.feeBasisPoints)[0];
+      let sniperSellIx = await this.getSellInstructionsBySimulateSellSolAmount(
+        sniperAccount.publicKey,
+        mintPubKey,
+        sniperTokenAmount,
+        simulateSniperSellSolAmount,
+        globalAccount.feeRecipient,
+      );
+
+      sniperSellTx.add(sniperSellIx);
+
+      let tipIx = jitoTipIx(sniperAccount.publicKey, jitoFee);
+      sniperSellTx.add(tipIx);
+
+      let sniperSellVersionedTx = await buildTx(
+        connection,
+        sniperSellTx,
+        sniperAccount.publicKey,
+        [sniperAccount],
+        latestBlockhash,      
+      );
+
+      if (!sniperSellVersionedTx) throw Error("Errors when sell tokens in sniper wallet");
+      bundleTxs.push(sniperSellVersionedTx);
+
+      let simulateCommonBuyTokenAmounts = bondingCurveAccount.simulateBuy(commonAmounts);
+
+      let commonBuyIxs = await Promise.all(commonAccounts.map(async (buyer, index) => {
+        return await this.getBuyInstructionsBySimulateBuyTokenAmount(
+          buyer.publicKey,
+          mintPubKey,
+          simulateCommonBuyTokenAmounts[index],
+          commonAmounts[index],
+          globalAccount.feeRecipient,
+          SLIPPAGE_BASIS_POINTS,
+        );
+      }));
+
+      let chunkCommonBuyIxs = chunk(commonBuyIxs, ixChunkLimit);
+      let chunkCommonAccounts = chunk(commonAccounts, ixChunkLimit);
+
+      await Promise.all(chunkCommonBuyIxs.map(async (buyIxs, index) => {
+        let newTx = (new Transaction).add(...buyIxs);
+        let newVersionedTx = await buildTx(
+          connection,
+          newTx,
+          payer.publicKey,
+          [payer, ...chunkCommonAccounts[index]],
+          latestBlockhash
+        );
+        if (!newVersionedTx) throw Error("Errors when buy tokens in common wallets");
+        bundleTxs.push(newVersionedTx);
+      }));
+
+      let result;
+      let count = 0;
+      while (true) {
+        result = await jitoWithAxios(bundleTxs, latestBlockhash);
+        if (result.confirmed) break;
+        count++;
+        if (count > 3) throw Error("Bundle failed");
+      }
+      return result;
+
+    } catch (err) {
+      console.log(`Second bundle  was failed after creation bundle, ${err}`);
+      return { confirmed: false, content: `Second bundle  was failed after creation bundle was success, ${err}`};
+    }
+  }
+
   async sellOne(
     payer: Keypair,
     sellAccount: Keypair,
@@ -275,107 +377,6 @@ export class PumpFunSDK {
     } catch (err) {
       console.log(`DumpSell bundle was failed, ${err}`);
       return { confirmed: false, content: `DumpSell bundle was failed, ${err}` }
-    }
-  }
-
-  async firstBundleAfterCreation(
-    payer: Keypair,
-    sniperAccount: Keypair,
-    commonAccounts: Keypair[],
-    sniperAmount: bigint,
-    commonAmounts: bigint[],
-    mintPubKey: PublicKey, // mint
-    jitoFee: number,
-    connection: Connection,
-    globalAccount: GlobalAccount,
-    SLIPPAGE_BASIS_POINTS: bigint,
-    priorityFees?: PriorityFee,
-    commitment: Commitment = DEFAULT_COMMITMENT,
-    finality: Finality = DEFAULT_FINALITY
-  ) {
-    try {
-      let bondingCurveAccount = await this.getBondingCurveAccount(
-        mintPubKey,
-        commitment
-      );
-      if (!bondingCurveAccount) throw Error("Errors when getting bondCurveAccount. It seems like there are some errors in rpc, or didn't create token yet");
-
-      let latestBlockhash = await this.connection.getLatestBlockhash();
-
-      let initialTx = new Transaction();
-      const bundleTxs: VersionedTransaction[] = [];
-
-      let tokenAmount = await getSPLBalance(connection, mintPubKey, sniperAccount.publicKey);
-      if (!tokenAmount) throw Error("Errors when getting token balance");
-      let sniperTokenAmount = BigInt(Math.floor(tokenAmount * DEFAULT_POW));
-
-      let simulateSniperSellSolAmount = bondingCurveAccount.simulateSell([sniperAmount], globalAccount.feeBasisPoints)[0];
-      let sniperSellIx = await this.getSellInstructionsBySimulateSellSolAmount(
-        sniperAccount.publicKey,
-        mintPubKey,
-        sniperTokenAmount,
-        simulateSniperSellSolAmount,
-        globalAccount.feeRecipient,
-      );
-
-      initialTx.add(sniperSellIx);
-
-      let tipIx = jitoTipIx(sniperAccount.publicKey, jitoFee);
-      initialTx.add(tipIx);
-
-      let initialVersionedTx = await buildTx(
-        connection,
-        initialTx,
-        sniperAccount.publicKey,
-        [sniperAccount],
-        latestBlockhash,      
-      );
-
-      if (!initialVersionedTx) throw Error("Errors when sell tokens in sniper wallet");
-      bundleTxs.push(initialVersionedTx);
-
-      let simulateCommonBuyTokenAmounts = bondingCurveAccount.simulateBuy(commonAmounts);
-
-      let commonBuyIxs = await Promise.all(commonAccounts.map(async (buyer, index) => {
-        return await this.getBuyInstructionsBySimulateBuyTokenAmount(
-          buyer.publicKey,
-          mintPubKey,
-          simulateCommonBuyTokenAmounts[index],
-          commonAmounts[index],
-          globalAccount.feeRecipient,
-          SLIPPAGE_BASIS_POINTS,
-        );
-      }));
-
-      let chunkCommonBuyIxs = chunk(commonBuyIxs, ixChunkLimit);
-      let chunkCommonAccounts = chunk(commonAccounts, ixChunkLimit);
-
-      await Promise.all(chunkCommonBuyIxs.map(async (buyIxs, index) => {
-        let newTx = (new Transaction).add(...buyIxs);
-        let newVersionedTx = await buildTx(
-          connection,
-          newTx,
-          payer.publicKey,
-          [payer, ...chunkCommonAccounts[index]],
-          latestBlockhash
-        );
-        if (!newVersionedTx) throw Error("Errors when buy tokens in common wallets");
-        bundleTxs.push(newVersionedTx);
-      }));
-
-      let result;
-      let count = 0;
-      while (true) {
-        result = await jitoWithAxios(bundleTxs, latestBlockhash);
-        if (result.confirmed) break;
-        count++;
-        if (count > 3) throw Error("Bundle failed");
-      }
-      return result;
-
-    } catch (err) {
-      console.log(`Second bundle  was failed after creation bundle, ${err}`);
-      return { confirmed: false, content: `Second bundle  was failed after creation bundle was success, ${err}`};
     }
   }
 
