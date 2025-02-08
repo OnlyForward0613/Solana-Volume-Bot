@@ -1,6 +1,4 @@
 import { Router } from "express";
-
-// import { insertMovie, Movies, Update, Delete } from "../controller/movie.route";
 import { distributionSol, gatherFund, launchToken, sellByAmount, sellByPercentage, sellDumpAll } from "../controller/pumpfun.route";
 import { 
   getWallets, 
