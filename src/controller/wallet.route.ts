@@ -96,7 +96,6 @@ export const generateMintWallet = async (req: Request, res: Response) => {
     while (true) {
       const newPrivateKey = bs58.encode(Keypair.generate().secretKey);
       if (!allWallets.includes(newPrivateKey)) {
-        await setValue(Key.MINT_PRIVATEKEY, newPrivateKey);
         res.status(ResponseStatus.SUCCESS).send(newPrivateKey);
         return;
       }
@@ -265,7 +264,7 @@ export const getBuyAmounts = async (req: Request, res: Response) => {
     const data = {
       dev: await getValue(AmountType.DEV) ?? 0,
       sniper: await getValue(AmountType.SNIPER) ?? 0,
-      common: await getListRange(AmountType.COMMON) ?? [],
+      common: await getListRange<number>(AmountType.COMMON) ?? [],
     }
 
     res.status(ResponseStatus.SUCCESS).send(data);
@@ -436,7 +435,7 @@ export const removeCommonWallet = async (req: Request, res: Response) => {
         console.log(result);
         if (await keyExists(AmountType.COMMON)) result = await deleteElementFromListWithIndex(AmountType.COMMON, i);
         console.log(result);
-        
+
         res.status(ResponseStatus.SUCCESS).send("Removing wallet is Success");
         return;
       }

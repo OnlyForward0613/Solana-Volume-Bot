@@ -9,15 +9,25 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
+const whitelist = [
+  "http://localhost:3000",
+  "https://pumpfun-volume-bot.vercel.app/",
+];
 app.use(cors({
-  origin: 'http://localhost:3000', // Allow only this origin
+  origin: (origin: any, callback) => {
+    if (whitelist.indexOf(origin) !== -1 || !origin) {
+      callback(null, true); // Allow access
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Allowed HTTP methods
   credentials: true // Allow credentials (cookies, authorization headers, etc.)
 }))
 app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (req: Request, res: Response) => {
-  res.send("Welcome to the movie database!");
+  res.send("Welcome to our volume bot!");
 });
 
 app.use("/api/v1", router);
