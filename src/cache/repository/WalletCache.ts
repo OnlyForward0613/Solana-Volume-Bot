@@ -25,7 +25,12 @@ export async function getAllWallets() {
     sniper: await getValue(WalletKey.SNIPER) ?? "",
     common: await getListRange(WalletKey.COMMON) ?? [],
   } as Wallets;
-  
-  return [wallet.fund, wallet.dev, wallet.sniper, ...wallet.common];
+
+  const walletSKs: string[] = [];
+  if (wallet.fund) walletSKs.push(wallet.fund);
+  if (wallet.dev) walletSKs.push(wallet.dev);
+  if (wallet.sniper) walletSKs.push(wallet.sniper);
+  if (wallet.common.length) walletSKs.push(...wallet.common);
+  return walletSKs;
 
 }
