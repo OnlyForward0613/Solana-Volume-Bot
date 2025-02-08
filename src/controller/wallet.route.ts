@@ -1,10 +1,22 @@
 import { Request, Response } from "express";
 import { getAllWallets } from "../cache/repository/WalletCache";
-import { addToList, deleteElementFromListWithIndex, deleteElementFromListWithValue, deleteKey, getCommonWalletsCounts, getHash, getJson, getListRange, getValue, keyExists, setHash, setJson, setList, setValue } from "../cache/query";
+import { 
+  addToList, 
+  deleteElementFromListWithIndex, 
+  deleteKey, 
+  getCommonWalletsCounts, 
+  getJson, 
+  getListRange, 
+  getValue, 
+  keyExists, 
+  setJson, 
+  setList, 
+  setValue 
+} from "../cache/query";
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { AmountType, Key, NetworkType, WalletKey, WalletType } from "../cache/keys";
-import { MAX_COMMON_WALLETS_NUMS} from "../config";
+import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
+import { configNetwork, MAX_COMMON_WALLETS_NUMS } from "../config";
 import { createNewPrivateKeyBasedonAssets, isValidSolanaPrivateKey } from "../helper/util";
 import { ResponseStatus } from "../core/ApiResponse";
 import { TokenMetadataType } from "../pumpfun/types";
@@ -205,6 +217,10 @@ export const setNetwork = async (req: Request, res: Response) => {
     }
     if (JITO_FEE) {
       await setValue(NetworkType.JITO_FEE, Math.floor(JITO_FEE * LAMPORTS_PER_SOL));
+    }
+
+    if (RPC_ENDPOINT && RPC_WEBSOCKET_ENDPOINT) {
+      configNetwork(RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT);
     }
 
     res.status(ResponseStatus.SUCCESS).send("Setting network configuration is OK");
