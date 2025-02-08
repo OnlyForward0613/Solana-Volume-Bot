@@ -1,16 +1,41 @@
 import { Program, Provider } from "@coral-xyz/anchor";
 import { PumpFun, IDL } from "./IDL";
-import { Commitment, Connection, Finality, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction, TransactionInstruction, Version, VersionedTransaction } from "@solana/web3.js";
+import { 
+  Commitment, 
+  Connection, 
+  Finality, 
+  Keypair, 
+  LAMPORTS_PER_SOL, 
+  PublicKey, 
+  Transaction, 
+  TransactionInstruction, 
+  Version, 
+  VersionedTransaction,
+  SystemProgram 
+} from "@solana/web3.js";
 import { TokenMetadataType, MARKETActionType, PriorityFee } from "./types";
-import { buildTx, calculateWithSlippageBuy, calculateWithSlippageSell, DEFAULT_COMMITMENT, DEFAULT_FINALITY, getRandomInt, getSPLBalance, sendTx } from "../helper/util";
+import { 
+  buildTx, 
+  calculateWithSlippageBuy, 
+  calculateWithSlippageSell, 
+  DEFAULT_COMMITMENT, 
+  DEFAULT_FINALITY, 
+  getRandomInt, 
+  getSPLBalance, 
+  sendTx 
+} from "../helper/util";
 import { Agent, setGlobalDispatcher } from "undici";
-import { createAssociatedTokenAccount, createAssociatedTokenAccountInstruction, getAccount, getAssociatedTokenAddress } from "@solana/spl-token";
+import { 
+  createAssociatedTokenAccount, 
+  createAssociatedTokenAccountInstruction, 
+  getAccount, 
+  getAssociatedTokenAddress 
+} from "@solana/spl-token";
 import { global_mint, JITO_FEE } from "../config";
 import { BondingCurveAccount } from "./bondingCurveAccount";
 import { GlobalAccount } from "./globalAccount";
 import { BN } from "bn.js";
 import { getJitoTipWallet, jitoTipIx, jitoWithAxios } from "../helper/jitoWithAxios";
-import { SystemProgram } from "@solana/web3.js";
 import { chunk } from "lodash";
 
 
@@ -242,6 +267,7 @@ export class PumpFunSDK {
         mintPubKey,
         commitment
       );
+      console.log(bondingCurveAccount);
       if (!bondingCurveAccount) throw Error("Errors when getting bondCurveAccount. It seems like there are some errors in rpc, or didn't create token yet");
 
       let latestBlockhash = await this.connection.getLatestBlockhash();
@@ -249,16 +275,13 @@ export class PumpFunSDK {
       let initialTx = new Transaction();
       const bundleTxs: VersionedTransaction[] = [];
 
-      let tokenAmount = await getSPLBalance(connection, mintPubKey, sellAccount.publicKey);
-      if (!tokenAmount) throw Error("Errors when getting token balance");
-      let sniperTokenAmount = BigInt(Math.floor(tokenAmount * DEFAULT_POW));
-
-      let simulateSellSolAmount = bondingCurveAccount.simulateSell([sellTokenAmount], globalAccount.feeBasisPoints)[0];
+      let minSolOutput = bondingCurveAccount.getSellPrice(sellTokenAmount, globalAccount.feeBasisPoints);
+      
       let sellIx = await this.getSellInstructionsBySimulateSellSolAmount(
         sellAccount.publicKey,
         mintPubKey,
-        sniperTokenAmount,
-        simulateSellSolAmount,
+        sellTokenAmount,
+        minSolOutput,
         globalAccount.feeRecipient,
         SLIPPAGE_BASIS_POINTS,
       );
