@@ -5,9 +5,9 @@ import { AnchorProvider } from "@coral-xyz/anchor";
 import { PumpFunSDK } from "./pumpfun/sdk";
 dotenv.config();
 
-export const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=662b2530-1747-4909-a65a-8ec18978b03a";
-export const RPC_WEBSOCKET_ENDPOINT = "wss://mainnet.helius-rpc.com/?api-key=91d51098-361c-43de-a61d-e691cac6f43b";
-export const PRIVATE_RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=662b2530-1747-4909-a65a-8ec18978b03a";
+export const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
+export const RPC_WEBSOCKET_ENDPOINT = "wss://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
+export const PRIVATE_RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
 
 export const COMMITMENT_LEVEL = 'confirmed' as Commitment;
 export let connection = new Connection(RPC_ENDPOINT, {

@@ -232,45 +232,45 @@ export const simulateTxBeforeSendBundle = async (
   connection: Connection,
   txs: VersionedTransaction[]
 ) => {
-  // const results = await Promise.all(txs.map(async (tx) => {
-  //   try {
-  //     const txid = await connection.simulateTransaction(tx, { commitment: DEFAULT_COMMITMENT});
-  //     const sig = base58.encode(tx.signatures[0]);
-  //     if (txid.value.err) {
-  //       console.log(`simulation err, sig: ${sig}`, txid.value.err);
-  //       return false;
-  //     } else {
-  //       console.log(`simulation ok, sig: ${sig}`, txid);
-  //       return true;
-  //     }
-  //   } catch (err) {
-  //     console.error('simulation err', err);
-  //     return false;
-  //   }
-  // }))
-  // const successNums = results.filter(result => result === true);
-  // console.log(successNums);
-  // if (successNums.length >= txs.length) {
-  //   return true;
-  // }
-  // return false;
-
-  for (const tx of txs) {
+  const results = await Promise.all(txs.map(async (tx) => {
     try {
-      const txid = await connection.simulateTransaction(tx, { commitment: 'confirmed'});
+      const txid = await connection.simulateTransaction(tx, { commitment: DEFAULT_COMMITMENT});
       const sig = base58.encode(tx.signatures[0]);
       if (txid.value.err) {
         console.log(`simulation err, sig: ${sig}`, txid.value.err);
-        // return false;
+        return false;
       } else {
-        console.log(`simulation ok, sig: ${sig}`);
+        console.log(`simulation ok, sig: ${sig}`, txid);
+        return true;
       }
     } catch (err) {
       console.error('simulation err', err);
       return false;
     }
+  }))
+  const successNums = results.filter(result => result === true);
+  console.log(successNums);
+  if (successNums.length >= txs.length) {
+    return true;
   }
-  return true;
+  return false;
+
+  // for (const tx of txs) {
+  //   try {
+  //     const txid = await connection.simulateTransaction(tx, { commitment: 'confirmed'});
+  //     const sig = base58.encode(tx.signatures[0]);
+  //     if (txid.value.err) {
+  //       console.log(`simulation err, sig: ${sig}`, txid.value.err);
+  //       // return false;
+  //     } else {
+  //       console.log(`simulation ok, sig: ${sig}`);
+  //     }
+  //   } catch (err) {
+  //     console.error('simulation err', err);
+  //     return false;
+  //   }
+  // }
+  // return true;
 }
 
 export const isFundSufficent = async (
