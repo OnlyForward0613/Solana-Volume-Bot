@@ -1,8 +1,6 @@
 import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 import { BadRequestError } from '../core/ApiError';
-import { authKeyCheck } from '../cache/query';
-
 
 export enum ValidationSource {
   BODY = 'body',
