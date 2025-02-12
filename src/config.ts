@@ -3,6 +3,7 @@ import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import dotenv from 'dotenv'
 import { AnchorProvider } from "@coral-xyz/anchor";
 import { PumpFunSDK } from "./pumpfun/sdk";
+import { LookupTableProvider } from "./helper/lutProvider";
 dotenv.config();
 
 export const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
@@ -59,4 +60,6 @@ export const configNetwork = (RPC_ENDPOINT: string, RPC_WEBSOCKET_ENDPOINT: stri
   sdk = new PumpFunSDK(anchorProvider)
 }
 
+
+export const lutProviders : { [key: string] : LookupTableProvider } = {};
 
