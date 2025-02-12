@@ -2,6 +2,7 @@ export enum Key {
   BLOGS_LATEST = 'BLOGS_LATEST',
   TOKEN_METADATA = 'TOKEN_METADATA',
   MINT_PRIVATEKEY = 'MINT_PRIVATEKEY',
+  USER_LIST = 'USER_LIST',
 }
 
 export enum DynamicKey {
@@ -37,6 +38,11 @@ export enum AmountType {
   FUND = 'FUND_AMOUNT',
   SELL_PERCENTAGE = 'SELL_PERCENTAGE',
   SELL_AMOUNT = 'SELL_AMOUNT',
+}
+
+export enum RoleType {
+  ADMIN = 'ADMIN',
+  USER = 'USER',
 }
 
 
