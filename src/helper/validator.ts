@@ -2,7 +2,6 @@ import Joi from 'joi';
 import { Request, Response, NextFunction } from 'express';
 import { BadRequestError } from '../core/ApiError';
 
-
 export enum ValidationSource {
   BODY = 'body',
   HEADER = 'headers',
