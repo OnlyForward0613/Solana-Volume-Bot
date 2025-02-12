@@ -11,7 +11,7 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 const whitelist = [
   "http://localhost:3000",
-  "https://pumpfun-volume-bot.vercel.app",
+  "https://pumpfun-volume-bot-run-ui.vercel.app",
 ];
 app.use(cors({
   origin: whitelist,
