@@ -1,7 +1,7 @@
 import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
 import { LaunchTokenType, DistributionType, GatherType, sellType, SellDumpAllType } from "../types";
 import { buildTx, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
-import { JITO_FEE, sdk } from "../config";
+import { JITO_FEE, lutProviders, sdk } from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import base58 from "bs58";
 import { getJitoTipWallet, jitoWithAxios } from "../helper/jitoWithAxios";
@@ -9,6 +9,7 @@ import chunk from 'lodash/chunk';
 import { Transaction } from "@solana/web3.js";
 import { TransactionInstruction } from "@solana/web3.js";
 import { Connection } from "@solana/web3.js";
+import { LookupTableProvider } from "../helper/lutProvider";
 
 const SLIPPAGE_BASIS_POINTS = 1000n;
 
@@ -32,6 +33,10 @@ export async function launchTokenService(
     console.log(boundingCurveAccount);
 
     if (!boundingCurveAccount) {
+
+      // configure lookup table
+      lutProviders["first"] = new LookupTableProvider();
+    
       let globalAccount = await sdk.getGlobalAccount();
       if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
 

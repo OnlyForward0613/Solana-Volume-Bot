@@ -75,6 +75,9 @@ export class PumpFunSDK {
     finality: Finality = DEFAULT_FINALITY
   ) {
     try {
+
+      
+
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
       let createTx = await this.getCreateInstructions(
