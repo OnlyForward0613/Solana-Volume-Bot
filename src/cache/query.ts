@@ -1,12 +1,12 @@
-import cache from '.';
-import { DynamicKeyType, Key, WalletKey } from './keys';
+import cache from ".";
+import { DynamicKeyType, Key, RoleType, WalletKey } from "./keys";
 
 export enum TYPES {
-  LIST = 'list',
-  STRING = 'string',
-  HASH = 'hash',
-  ZSET = 'zset',
-  SET = 'set',
+  LIST = "list",
+  STRING = "string",
+  HASH = "hash",
+  ZSET = "zset",
+  SET = "set",
 }
 
 export async function keyExists(...keys: string[]) {
@@ -19,7 +19,7 @@ export async function deleteKey(key: Key | DynamicKeyType) {
 
 export async function deleteElementFromListWithValue(
   key: Key | DynamicKeyType,
-  value: string,
+  value: string
 ) {
   const type = await cache.type(key);
   if (type !== TYPES.LIST) return null;
@@ -28,28 +28,28 @@ export async function deleteElementFromListWithValue(
 
 export async function deleteElementFromListWithIndex(
   key: Key | DynamicKeyType,
-  index: number,
+  index: number
 ) {
   const type = await cache.type(key);
   if (type !== TYPES.LIST) return null;
-  
+
   const length = await cache.lLen(key);
 
   for (let i = 0; i < length; i++) {
     if (i != index) {
       const value = await cache.lIndex(key, i);
-      if (value) await cache.rPush('temp_list', value);
+      if (value) await cache.rPush("temp_list", value);
     }
   }
 
   await cache.del(key);
-  return cache.rename('temp_list', key);
+  return cache.rename("temp_list", key);
 }
 
 export async function setValue(
   key: Key | DynamicKeyType,
   value: string | number,
-  expireAt: Date | null = null,
+  expireAt: Date | null = null
 ) {
   if (expireAt) return cache.pSetEx(key, expireAt.getTime(), `${value}`);
   else return cache.set(key, `${value}`);
@@ -62,10 +62,10 @@ export async function getValue(key: Key | DynamicKeyType) {
 export async function setHashValue(
   key: Key | DynamicKeyType,
   value: any,
-  expireAt: Date | null = null,
+  expireAt: Date | null = null
 ) {
   if (expireAt) return cache.hSet(key, expireAt.getTime(), `${value}`);
-  else return cache.hSet(key, `${value}`, '');
+  else return cache.hSet(key, `${value}`, "");
 }
 
 export async function getHashValue(key: Key | DynamicKeyType) {
@@ -79,7 +79,7 @@ export async function delByKey(key: Key | DynamicKeyType) {
 export async function setJson(
   key: Key | DynamicKeyType,
   value: Record<string, unknown>,
-  expireAt: Date | null = null,
+  expireAt: Date | null = null
 ) {
   const json = JSON.stringify(value);
   return await setValue(key, json, expireAt);
@@ -98,10 +98,10 @@ export async function getJson<T>(key: Key | DynamicKeyType) {
 export async function setList(
   key: Key | DynamicKeyType,
   list: any[],
-  expireAt: Date | null = null,
+  expireAt: Date | null = null
 ) {
   const multi = cache.multi();
-  const values: any[] = []
+  const values: any[] = [];
   for (const i in list) {
     values[i] = JSON.stringify(list[i]);
   }
@@ -122,7 +122,7 @@ export async function addToList(key: Key | DynamicKeyType, value: any) {
 export async function getListRange<T>(
   key: Key | DynamicKeyType,
   start = 0,
-  end = -1,
+  end = -1
 ) {
   const type = await cache.type(key);
   if (type !== TYPES.LIST) return null;
@@ -134,11 +134,10 @@ export async function getListRange<T>(
   return data;
 }
 
-
 export async function setHash(
   key: Key | DynamicKeyType,
   value: Record<string, unknown>,
-  expireAt: Date | null = null,
+  expireAt: Date | null = null
 ) {
   // const json = JSON.stringify(value);
   return await setHashValue(key, value, expireAt);
@@ -146,9 +145,9 @@ export async function setHash(
 
 export async function getHash<T>(key: Key | DynamicKeyType) {
   const type = await cache.type(key);
-  if (type !== TYPES.HASH) return null
-  
-  return await getHashValue(key) as T;
+  if (type !== TYPES.HASH) return null;
+
+  return (await getHashValue(key)) as T;
   // if (json) return JSON.parse(json) as T;
 
   // return null;
@@ -161,7 +160,7 @@ export async function getCommonWalletsCounts() {
 export async function setOrderedSet(
   key: Key,
   items: Array<{ score: number; value: any }>,
-  expireAt: Date | null = null,
+  expireAt: Date | null = null
 ) {
   const multi = cache.multi();
   for (const item of items) {
@@ -175,7 +174,7 @@ export async function setOrderedSet(
 
 export async function addToOrderedSet(
   key: Key,
-  items: Array<{ score: number; value: any }>,
+  items: Array<{ score: number; value: any }>
 ) {
   const type = await cache.type(key);
   if (type !== TYPES.ZSET) return null;
@@ -227,9 +226,100 @@ export async function expire(expireAt: Date, key: Key | DynamicKeyType) {
 }
 
 export async function expireMany(expireAt: Date, ...keys: string[]) {
-  let script = '';
+  let script = "";
   for (const key of keys) {
     script += `redis.call('pExpireAt', '${key}',${expireAt.getTime()})`;
   }
   return await cache.eval(script);
+}
+
+// custom query for user management
+
+async function getNewUserId() {
+  return await cache.incr("nextUserId");
+}
+
+export async function addUser(name: string, authKey: string) {
+  const keys = await cache.keys("user:*:authKey");
+  for (const key of keys) {
+    const existingAuthKey = await cache.get(key);
+    if (existingAuthKey === authKey) {
+      throw new Error(`AuthKey '${authKey}' is already in use.`);
+    }
+  }
+
+  const userId = await getNewUserId();
+
+  await cache.set(`user:${userId}:name`, name);
+  await cache.set(`user:${userId}:authKey`, authKey);
+  await cache.set(`user:${userId}:role`, RoleType.USER);
+
+  console.log(`User added with ID: ${userId}`);
+}
+
+export async function getAllUsers() {
+  const users = [];
+  const keys = await cache.keys("user:*:authKey");
+
+  for (const key of keys) {
+    const userId = key.split(":")[1];
+    const name = await cache.get(`user:${userId}:name`);
+    const authKey = await cache.get(`user:${userId}:authKey`);
+    const role = await cache.get(`user:${userId}:role`);
+    if (role !== RoleType.USER) continue;
+    users.push({ name, authKey, role });
+  }
+
+  return users;
+}
+
+export async function deleteUserByAuthKey(authKey: string) {
+  const keys = await cache.keys(`user:*:authKey`);
+  for (const key of keys) {
+    const existingAuthKey = await cache.get(key);
+    if (existingAuthKey === authKey) {
+      const userId = key.split(":")[1];
+      await cache.del(`user:${userId}:name`);
+      await cache.del(`user:${userId}:authKey`);
+      await cache.del(`user:${userId}:role`);
+      console.log(`User deleted with ID: ${userId}`);
+      return;
+    }
+  }
+}
+
+export async function editUser(authKey: string, name: string) {
+  const keys = await cache.keys(`user:*:authKey`);
+  for (const key of keys) {
+    const existingAuthKey = await cache.get(key);
+    if (existingAuthKey === authKey) {
+      const userId = key.split(":")[1];
+      await cache.set(`user:${userId}:name`, name);
+      console.log(`User updated with ID: ${userId}`);
+      return;
+    }
+  }
+}
+
+export async function authKeyCheck(authKey: string) {
+  const keys = await cache.keys(`user:*:authKey`);
+  for (const key of keys) {
+    const existingAuthKey = await cache.get(key);
+    if (existingAuthKey === authKey) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export async function adminCheck(authKey: string) {
+  const keys = await cache.keys(`user:*:authKey`);
+  for (const key of keys) {
+    const existingAuthKey = await cache.get(key);
+    if (existingAuthKey === authKey) {
+      const role = await cache.get(`user:${key.split(":")[1]}:role`);
+      return role === RoleType.ADMIN;
+    }
+  }
+  return false;
 }

@@ -69,5 +69,22 @@ export default {
   }),
   removeCommonWallet: Joi.object().keys({
     wallet: Joi.string().required(),
-  })
+  }),
+  setUser: Joi.object().keys({
+    name: Joi.string().required(),
+    authKey: Joi.string().required().length(32),
+  }),
+  deleteUser: Joi.object().keys({
+    authKey: Joi.string().required().length(32),
+  }),
+  editUser: Joi.object().keys({
+    authKey: Joi.string().required().length(32),
+    newUsername: Joi.string().optional(),
+  }),
+  authKeyCheck: Joi.object().keys({
+    authKey: Joi.string().required().length(32),
+  }),
+  authAdmin: Joi.object().keys({
+    authKey: Joi.string().required(),
+  }),
 };

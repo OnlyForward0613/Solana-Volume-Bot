@@ -21,7 +21,13 @@ import {
   removeDevWallet,
   removeSniperWallet,
   removeCommonWallet,
-  generateMintWallet
+  generateMintWallet,
+  adminSetUser,
+  adminGetAllUsers,
+  adminDeleteUser,
+  adminEditUsername,
+  authKeyCheckWhileEntering,
+  adminCheckWhileEnteringDashboard
 } from "../controller/wallet.route";
 import schema from "./schema";
 import validator, { ValidationSource } from "../helper/validator";
@@ -76,5 +82,15 @@ router.delete("/remove-wallet/fund", removeFundWallet);
 router.delete("/remove-wallet/dev", removeDevWallet);
 router.delete("/remove-wallet/sniper", removeSniperWallet);
 router.post("/remove-wallet/common", validator(schema.removeCommonWallet), removeCommonWallet);
+
+// user management
+router.post("/admin/set-user", validator(schema.setUser), adminSetUser);
+router.get("/admin/get-all-users", adminGetAllUsers);
+router.post("/admin/delete-user", validator(schema.deleteUser), adminDeleteUser);
+router.post("/admin/edit-user", validator(schema.editUser), adminEditUsername);
+
+// auth check
+router.post("/auth/key", validator(schema.authKeyCheck), authKeyCheckWhileEntering);
+router.post("/auth/admin", validator(schema.authAdmin), adminCheckWhileEnteringDashboard);
 
 export default router;
