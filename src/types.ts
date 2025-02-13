@@ -18,6 +18,7 @@ export type sellType = {
 }
 
 export type LaunchTokenType = {
+  fundAccount: Keypair,
   devAccount: Keypair,
   sniperAccount: Keypair,
   commonAccounts: Keypair[],

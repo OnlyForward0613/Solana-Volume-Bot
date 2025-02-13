@@ -1,16 +1,16 @@
 import { Commitment, Connection, Keypair, PublicKey } from "@solana/web3.js";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import dotenv from 'dotenv'
+dotenv.config();
 import { AnchorProvider } from "@coral-xyz/anchor";
 import { PumpFunSDK } from "./pumpfun/sdk";
 import { LookupTableProvider } from "./helper/lutProvider";
-dotenv.config();
 
 export const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
 export const RPC_WEBSOCKET_ENDPOINT = "wss://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
 export const PRIVATE_RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
 
-export const COMMITMENT_LEVEL = 'confirmed' as Commitment;
+export const COMMITMENT_LEVEL = 'processed' as Commitment;
 export let connection = new Connection(RPC_ENDPOINT, {
   wsEndpoint: RPC_WEBSOCKET_ENDPOINT
 });
@@ -32,7 +32,7 @@ export let anchorProvider = getProvider(connection);
 export const BLOCKENGINE_URL="tokyo.mainnet.block-engine.jito.wtf"
 export const JITO_AUTH_KEYPAIR = "66xqL9aFZJ8k9YpjNBexNASfuoDgNE1ZpGRXB28zoTfS4u2czzVBhMNMqgZYFeMN8FnUi6gMzXWgVYRHkTZ6yuLC"
 export const JITO_KEY="66xqL9aFZJ8k9YpjNBexNASfuoDgNE1ZpGRXB28zoTfS4u2czzVBhMNMqgZYFeMN8FnUi6gMzXWgVYRHkTZ6yuLC"
-export const JITO_FEE = 2000000; // 0.002 sol
+export const JITO_FEE = 2000000; // 0.0002 sol
 
 // pumpfun sdk
 export const global_mint = new PublicKey("p89evAyzjd9fphjJx7G3RFA48sbZdpGEppRcfRNpump");
@@ -57,7 +57,7 @@ export const configNetwork = (RPC_ENDPOINT: string, RPC_WEBSOCKET_ENDPOINT: stri
     wsEndpoint: RPC_WEBSOCKET_ENDPOINT
   });
   anchorProvider = getProvider(connection);
-  sdk = new PumpFunSDK(anchorProvider)
+  sdk = new PumpFunSDK(anchorProvider);
 }
 
 

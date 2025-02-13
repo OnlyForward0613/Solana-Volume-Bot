@@ -57,13 +57,13 @@ export const jitoWithAxios = async (
     console.log(signatures);
 
     // Simulate bundle
-    const simultationResult: any = await simulateTxBeforeSendBundle(connection, [...transactions]);
-    if (!simultationResult) {
-      console.log("simulation error. plz try again");
-      return { confirmed: false };
-    }
-    console.log("simulation success");
-    return { confirmed: true, content: "Bundle simulation is Ok" };
+    // const simultationResult: any = await simulateTxBeforeSendBundle(connection, [...transactions]);
+    // if (!simultationResult) {
+    //   console.log("simulation error. plz try again");
+    //   return { confirmed: false };
+    // }
+    // console.log("simulation success");
+    // return { confirmed: true, content: "Bundle simulation is Ok" };s
 
     const endpoints = [
       'https://mainnet.block-engine.jito.wtf/api/v1/bundles',
@@ -97,7 +97,7 @@ export const jitoWithAxios = async (
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
           blockhash: latestBlockhash.blockhash,
         },
-        "processed",
+        "confirmed",
       );
 
       console.log(confirmation);

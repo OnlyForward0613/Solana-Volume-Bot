@@ -16,6 +16,8 @@ export async function launchToken(req: Request, res: Response) {
     const devSK = await getValue(WalletKey.DEV) ?? null
     const sniperSK = await getValue(WalletKey.SNIPER) ?? null
     const commonSKs = await getListRange<string>(WalletKey.COMMON) ?? [];
+    const fundPK = await getValue(WalletKey.FUND) ?? null
+    
     const mintSK = await getValue(Key.MINT_PRIVATEKEY) ?? null;
 
     const devSolAmount = Number(await getValue(AmountType.DEV)) ?? 0;
@@ -27,7 +29,7 @@ export async function launchToken(req: Request, res: Response) {
     console.log(tokenInfo);
     
     if (!mintSK) throw Error("Mint addresss doen't exist");
-
+    if (!fundPK) throw Error("Fund wallet doesn't exist"); 
     if (!devSolAmount) throw Error("Dev solAmount doesn't exist");
     if (!devSK) throw Error("Dev wallet doesn't exist");
 
@@ -47,6 +49,7 @@ export async function launchToken(req: Request, res: Response) {
     let sniperAmount = BigInt(sniperSolAmount * LAMPORTS_PER_SOL);
 
     const devAccount = Keypair.fromSecretKey(bs58.decode(devSK)); 
+    const fundAccount = Keypair.fromSecretKey(bs58.decode(fundPK)); 
     const sniperAccount = Keypair.fromSecretKey(bs58.decode(sniperSK));
     const mint = Keypair.fromSecretKey(bs58.decode(mintSK));
 
@@ -63,6 +66,7 @@ export async function launchToken(req: Request, res: Response) {
 
     const result = await launchTokenService(
       {
+        fundAccount,
         devAccount,
         sniperAccount,
         commonAccounts: realCommonAccounts,
