@@ -1,4 +1,6 @@
 import { Request, Response } from "express";
+import fs from "fs";
+import path from "path";
 import { getAllWallets } from "../cache/repository/WalletCache";
 import {
   addToList,
@@ -22,7 +24,7 @@ import {
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
-import { configNetwork, MAX_COMMON_WALLETS_NUMS } from "../config";
+import { configNetwork, MAX_COMMON_WALLETS_NUMS, sdk } from "../config";
 import {
   createNewPrivateKeyBasedonAssets,
   isValidSolanaPrivateKey,
@@ -127,14 +129,31 @@ export const generateSniperWallet = async (req: Request, res: Response) => {
 // generate mint wallet
 export const generateMintWallet = async (req: Request, res: Response) => {
   try {
-    const allWallets = await getAllWallets();
-    while (true) {
-      const newPrivateKey = bs58.encode(Keypair.generate().secretKey);
-      if (!allWallets.includes(newPrivateKey)) {
+    const tokenPath = path.join(__dirname, "../services/.keys/vanity.json");
+    const tokenData = JSON.parse(fs.readFileSync(tokenPath, "utf8"));
+    console.log(`Generating ${tokenData} from ` + tokenPath)
+    const keyPairs = tokenData.map((item: {secretKey: string, publicKey: string}) => (
+      Keypair.fromSecretKey(bs58.decode(item.secretKey))
+    ));
+
+    while (keyPairs.length > 0) {
+      const index = Math.floor(Math.random() * keyPairs.length);
+      const selectedKeyPair = keyPairs[index];
+
+      const newPrivateKey = bs58.encode(selectedKeyPair.secretKey);
+      const existsInBondingCurve = await sdk.getBondingCurveAccount(selectedKeyPair.publicKey);
+      
+      if (!existsInBondingCurve) {
         res.status(ResponseStatus.SUCCESS).send(newPrivateKey);
         return;
       }
+
+      keyPairs.splice(index, 1); // Remove the selected keypair from the array to avoid duplicates
     }
+
+    // If no available wallet is found
+    res.status(ResponseStatus.NOT_FOUND).send('No available address found');
+
   } catch (err) {
     console.log(`Errors when generating mint wallet, ${err}`);
     res
