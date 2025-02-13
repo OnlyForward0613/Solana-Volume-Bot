@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 // import bodyParser from "body-parser";
 // import { db } from "./dbConnection";
+import './config';
 import './cache';
 import router from "./routes/main.route";
 import cors from 'cors';
