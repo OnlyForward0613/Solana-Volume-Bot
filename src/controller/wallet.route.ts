@@ -129,9 +129,9 @@ export const generateSniperWallet = async (req: Request, res: Response) => {
 // generate mint wallet
 export const generateMintWallet = async (req: Request, res: Response) => {
   try {
-    const tokenPath = path.join(__dirname, "../../upload/.keys/vanity.json");
+    const tokenPath = path.join(__dirname, "../services/.keys/vanity.json");
     const tokenData = JSON.parse(fs.readFileSync(tokenPath, "utf8"));
-    // console.log(`Generating ${tokenData} from ` + tokenPath)
+    console.log(`Generating ${tokenData} from ` + tokenPath)
     const keyPairs = tokenData.map((item: {secretKey: string, publicKey: string}) => (
       Keypair.fromSecretKey(bs58.decode(item.secretKey))
     ));

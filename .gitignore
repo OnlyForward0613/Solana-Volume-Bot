@@ -3,5 +3,3 @@ node_modules/
 
 # env variables
 .env
-
-dist/
