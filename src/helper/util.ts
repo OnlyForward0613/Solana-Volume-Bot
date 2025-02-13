@@ -102,7 +102,8 @@ export async function buildTx(
   latestBlockhash: BlockhashWithExpiryBlockHeight,
   priorityFees?: PriorityFee,
   commitment: Commitment = DEFAULT_COMMITMENT,
-  finality: Finality = DEFAULT_FINALITY
+  finality: Finality = DEFAULT_FINALITY,
+  lutAccounts: AddressLookupTableAccount[] | undefined = undefined
 ): Promise<VersionedTransaction | null> {
   try {
     let newTx = new Transaction();
@@ -119,7 +120,15 @@ export async function buildTx(
       newTx.add(addPriorityFee);
     }
     newTx.add(tx);
-    let versionedTx = await buildVersionedTx(connection, payer, newTx, latestBlockhash, commitment);
+    let versionedTx = await buildVersionedTx(
+        connection, 
+        payer, 
+        newTx, 
+        latestBlockhash, 
+        commitment,
+        finality,
+        lutAccounts
+    );
     versionedTx.sign(signers);
     return versionedTx;
   } catch (err) {
@@ -134,6 +143,7 @@ export const buildVersionedTx = async (
   tx: Transaction,
   latestBlockhash: BlockhashWithExpiryBlockHeight,
   commitment: Commitment = DEFAULT_COMMITMENT,
+  finality: Commitment = DEFAULT_FINALITY,
   lutAccounts: AddressLookupTableAccount[] | undefined = undefined,
 ): Promise<VersionedTransaction> => {
 

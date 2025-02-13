@@ -1,4 +1,4 @@
-import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
 import { LaunchTokenType, DistributionType, GatherType, sellType, SellDumpAllType } from "../types";
 import { buildTx, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
 import { JITO_FEE, lutProviders, sdk } from "../config";
@@ -11,11 +11,12 @@ import { TransactionInstruction } from "@solana/web3.js";
 import { Connection } from "@solana/web3.js";
 import { LookupTableProvider } from "../helper/lutProvider";
 
-const SLIPPAGE_BASIS_POINTS = 1000n;
+const SLIPPAGE_BASIS_POINTS = 500n;
 
 // launch new token on solana based on mint address
 export async function launchTokenService(
   {
+    fundAccount,
     devAccount,
     sniperAccount,
     commonAccounts,
@@ -36,13 +37,14 @@ export async function launchTokenService(
 
       // configure lookup table
       lutProviders["first"] = new LookupTableProvider();
+      lutProviders["first"].getLookupTable(new PublicKey("F3JrzXceYGjADdrd6RY7gS2gkiJxUzv3FQgW2KMQHLvP"));
     
       let globalAccount = await sdk.getGlobalAccount();
       if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
 
       console.log("jito fee: ", jitoFee);
       let createResult = await sdk.launchToken(
-        devAccount,
+        fundAccount, // payer
         mint,
         [devAccount, sniperAccount], // buyers
         tokenInfo,
@@ -61,7 +63,7 @@ export async function launchTokenService(
       await sleep(500);
 
       const secondResult = await sdk.firstBundleAfterCreation(
-        devAccount,
+        fundAccount,
         sniperAccount,
         commonAccounts,
         commonAmounts,
