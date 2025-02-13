@@ -80,10 +80,20 @@ export class PumpFunSDK {
       if (!createLutIx) throw Error(lut as string);
       
       let newTx = new Transaction().add(createLutIx as TransactionInstruction);
+      let tipIx = jitoTipIx(payer.publicKey, jitoFee);
+      newTx.add(tipIx);
+      
       let accounts = getAllAccountsForLUT(mint.publicKey, payer.publicKey, buyers);
       
-      let chunkAccounts = chunk(accounts, extendLimt);
-      
+      newTx.instructions.forEach((ix) => {
+        ix.keys.forEach((key) => {
+            accounts.push(key.pubkey);
+        });
+      });
+
+      let accountSet: Set<PublicKey> = new Set(accounts); // remove duplicate accounts
+      let chunkAccounts = chunk(Array.from(accountSet), extendLimt); // move Set to Array
+
       chunkAccounts.map(accounts => {
         newTx.add(extendLut(
           lut as PublicKey,
@@ -104,9 +114,7 @@ export class PumpFunSDK {
 
       newTx.add(createTx);
 
-      let tipIx = jitoTipIx(payer.publicKey, jitoFee);
-
-      newTx.add(tipIx);
+      // const lutAccount = await this.connection.getAddressLookupTable(lut as PublicKey);
       
       let createVersionedTx = await buildTx(
         this.connection,
@@ -165,7 +173,6 @@ export class PumpFunSDK {
     }
   } 
 
-  
   async firstBundleAfterCreation(
     payer: Keypair,
     sniperAccount: Keypair,

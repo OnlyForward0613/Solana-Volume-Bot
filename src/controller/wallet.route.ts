@@ -285,6 +285,8 @@ export const getNetwork = async (req: Request, res: Response) => {
       JITO_FEE: (await getValue(NetworkType.JITO_FEE)) ?? 0,
     };
 
+    if (data.JITO_FEE) data.JITO_FEE = Number(data.JITO_FEE) / LAMPORTS_PER_SOL;
+
     res.status(ResponseStatus.SUCCESS).send(data);
   } catch (err) {
     console.log(`Errors when getting network configuration, ${err}`);
