@@ -405,7 +405,7 @@ export const getAllAccountsForLUT = (
   
   } catch (err) {
     console.log(`Errors when getting all accounts for LUT, ${err}`);
-    return null;
+    return [];
   }
 }
 
