@@ -9,47 +9,47 @@ import {
   PublicKey, 
   Transaction, 
   TransactionInstruction, 
-  Version, 
   VersionedTransaction,
-  SystemProgram 
 } from "@solana/web3.js";
-import { TokenMetadataType, MARKETActionType, PriorityFee } from "./types";
+import { TokenMetadataType, PriorityFee } from "./types";
 import { 
   buildTx, 
   calculateWithSlippageBuy, 
   calculateWithSlippageSell, 
   DEFAULT_COMMITMENT, 
   DEFAULT_FINALITY, 
-  getRandomInt, 
-  getSPLBalance, 
-  sendTx 
+  extendLut, 
+  getAllAccountsForLUT, 
+  getSPLBalance,
+  initializeLUT, 
 } from "../helper/util";
-import { Agent, setGlobalDispatcher } from "undici";
+// import { Agent, setGlobalDispatcher } from "undici";
 import { 
-  createAssociatedTokenAccount, 
   createAssociatedTokenAccountInstruction, 
   getAccount, 
   getAssociatedTokenAddress 
 } from "@solana/spl-token";
-import { global_mint, JITO_FEE } from "../config";
 import { BondingCurveAccount } from "./bondingCurveAccount";
 import { GlobalAccount } from "./globalAccount";
 import { BN } from "bn.js";
-import { getJitoTipWallet, jitoTipIx, jitoWithAxios } from "../helper/jitoWithAxios";
-import { chunk, clone } from "lodash";
-import { log } from "console";
+import { jitoTipIx, jitoWithAxios } from "../helper/jitoWithAxios";
+import { chunk } from "lodash";
 
 
-const PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
-const MPL_TOKEN_METADATA_PROGRAM_ID = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s";
-const GLOBAL_ACCOUNT = "4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf";
-const FEE_RECIPICEMT = new PublicKey("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM");
+export const PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"; // pumpfun program
+export const MPL_TOKEN_METADATA_PROGRAM_ID = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"; 
+export const FEE_RECIPICEMT = new PublicKey("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM"); // global.fee_repicient
+export const EVENT_AUTHORITY = new PublicKey("Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1");
+export const GLOBAL_ACCOUNT = new PublicKey("4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf"); // pumpfun global account
+export const MINT_AUTHORITY = new PublicKey("TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM");
+
 
 export const GLOBAL_ACCOUNT_SEED = "global";
 export const MINT_AUTHORITY_SEED = "mint-authority";
 export const BONDING_CURVE_SEED = "bonding-curve";
 export const METADATA_SEED = "metadata";
 export const ixChunkLimit = 3; // instruction chunk limit is 3 if we don't use ALT, otherwise it's 5
+export const extendLimt = 30; // address lookup table extend limit
 
 export const DEFAULT_DECIMALS = 6;
 export const DEFAULT_POW = Math.pow(10, DEFAULT_DECIMALS);
@@ -63,7 +63,7 @@ export class PumpFunSDK {
   }
 
   async launchToken(
-    creator: Keypair, // devAccount
+    payer: Keypair, // payer
     mint: Keypair, 
     buyers: Keypair[], // [devAccount, buyAccount]
     tokenInfo: TokenMetadataType,
@@ -75,27 +75,44 @@ export class PumpFunSDK {
     finality: Finality = DEFAULT_FINALITY
   ) {
     try {
+      
+      let [ createLutIx, lut ] = await initializeLUT(this.connection, payer.publicKey);
+      if (!createLutIx) throw Error(lut as string);
+      
+      let newTx = new Transaction().add(createLutIx as TransactionInstruction);
+      let accounts = getAllAccountsForLUT(mint.publicKey, payer.publicKey, buyers);
+      
+      let chunkAccounts = chunk(accounts, extendLimt);
+      
+      chunkAccounts.map(accounts => {
+        newTx.add(extendLut(
+          lut as PublicKey,
+          payer.publicKey,
+          accounts
+        ));
+      })
+      
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
       let createTx = await this.getCreateInstructions(
-        creator.publicKey,
+        payer.publicKey,
         tokenInfo.name,
         tokenInfo.symbol,
         tokenInfo.metadataUri,
         mint
       );
 
-      let newTx = new Transaction().add(createTx);
+      newTx.add(createTx);
 
-      let tipIx = jitoTipIx(creator.publicKey, jitoFee);
+      let tipIx = jitoTipIx(payer.publicKey, jitoFee);
 
       newTx.add(tipIx);
       
       let createVersionedTx = await buildTx(
         this.connection,
         newTx,
-        creator.publicKey,
-        [creator, mint],
+        payer.publicKey,
+        [payer, mint],
         latestBlockhash,
         priorityFees,
         commitment,

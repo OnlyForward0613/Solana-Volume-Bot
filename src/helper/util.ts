@@ -1,11 +1,28 @@
-import { Commitment, ComputeBudgetProgram, Connection, Finality, Keypair, LAMPORTS_PER_SOL, PublicKey, SendTransactionError, Transaction, TransactionMessage, VersionedTransaction, VersionedTransactionResponse } from "@solana/web3.js";
+import { 
+  Commitment, 
+  ComputeBudgetProgram, 
+  Connection, 
+  Finality, 
+  Keypair, 
+  LAMPORTS_PER_SOL, 
+  PublicKey, 
+  SendTransactionError, 
+  SystemProgram, 
+  Transaction, 
+  TransactionMessage, 
+  VersionedTransaction, 
+  VersionedTransactionResponse,
+  SYSVAR_RENT_PUBKEY,
+  AddressLookupTableProgram,
+  AddressLookupTableAccount,
+} from "@solana/web3.js";
 import { PriorityFee, TransactionResult } from "../pumpfun/types";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import fs from "fs";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import base58 from "bs58";
 import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
-import { connection } from "../config";
+import { BONDING_CURVE_SEED, FEE_RECIPICEMT, GLOBAL_ACCOUNT, METADATA_SEED, MINT_AUTHORITY, MPL_TOKEN_METADATA_PROGRAM_ID, PROGRAM_ID } from "../pumpfun/sdk";
 
 export const DEFAULT_COMMITMENT: Commitment = "processed";
 export const DEFAULT_FINALITY: Finality = "finalized";
@@ -116,19 +133,20 @@ export const buildVersionedTx = async (
   payer: PublicKey,
   tx: Transaction,
   latestBlockhash: BlockhashWithExpiryBlockHeight,
-  commitment: Commitment = DEFAULT_COMMITMENT
+  commitment: Commitment = DEFAULT_COMMITMENT,
+  lutAccounts: AddressLookupTableAccount[] | undefined = undefined,
 ): Promise<VersionedTransaction> => {
+
   const blockhash = latestBlockhash.blockhash;
 
   let messageV0 = new TransactionMessage({
     payerKey: payer,
     recentBlockhash: blockhash,
     instructions: tx.instructions,
-  }).compileToV0Message();
+  }).compileToV0Message(lutAccounts);
 
   return new VersionedTransaction(messageV0);
 };
-
 
 export async function sendTx(
   connection: Connection,
@@ -325,4 +343,98 @@ export const isValidSolanaPrivateKey = (keys: string[]) => {
     console.log(`Invalid solana address, ${err}`);
     return false;
   }
+}
+
+// get all accounts for address lookup table
+export const getAllAccountsForLUT = (
+  mintPK: PublicKey,
+  payerPK: PublicKey,
+  accounts: Keypair[],
+) => {
+  try {
+    const accountsForLUT: PublicKey[] = [];
+
+    accounts.map(account => {
+      const ataAccount = getAssociatedTokenAddressSync(mintPK, account.publicKey);
+      accountsForLUT.push(account.publicKey, ataAccount);
+    });
+
+    const mplTokenMetadata = new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID);
+    const [metadataPDA] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(METADATA_SEED),
+        mplTokenMetadata.toBuffer(),
+        mintPK.toBuffer()
+      ],
+      mplTokenMetadata
+    );
+
+    const [bondingCurve] = PublicKey.findProgramAddressSync(
+      [Buffer.from(BONDING_CURVE_SEED), mintPK.toBuffer()],
+      new PublicKey(PROGRAM_ID),
+    );
+
+    const [associatedBondingCurve] = PublicKey.findProgramAddressSync(
+      [
+        bondingCurve.toBuffer(),
+        TOKEN_PROGRAM_ID.toBuffer(),
+        mintPK.toBuffer(),
+      ],
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+    );
+
+    accountsForLUT.push(
+      GLOBAL_ACCOUNT,
+      MINT_AUTHORITY,
+      mplTokenMetadata, 
+      metadataPDA,
+      bondingCurve,
+      associatedBondingCurve,
+      mintPK,
+      new PublicKey(PROGRAM_ID), // pumpfun program
+      FEE_RECIPICEMT,
+      SystemProgram.programId,
+      TOKEN_2022_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      SYSVAR_RENT_PUBKEY,
+      payerPK
+    );
+
+    return accountsForLUT;
+  
+  } catch (err) {
+    console.log(`Errors when getting all accounts for LUT, ${err}`);
+    return null;
+  }
+}
+
+export const initializeLUT = async (
+  connection: Connection,
+  authorityPK: PublicKey
+) => {
+  try {
+    const slot = await connection.getSlot();
+    return AddressLookupTableProgram.createLookupTable({
+      authority: authorityPK,
+      payer: authorityPK,
+      recentSlot: slot - 1
+    });
+  } catch (err) {
+    console.log(`Errors when initializing LUT, ${err}`);
+    return [null, `Errors when initializing LUT, ${err}`]
+  }
+}
+
+export const extendLut = (
+  lut: PublicKey,
+  payerPK: PublicKey,
+  accounts: PublicKey[]
+) => {
+  return AddressLookupTableProgram.extendLookupTable({
+    lookupTable: lut,
+    authority: payerPK,
+    payer: payerPK,
+    addresses: accounts
+  });
 }
