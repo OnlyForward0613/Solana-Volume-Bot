@@ -13,6 +13,7 @@ import {
   editUser,
   getAllUsers,
   getCommonWalletsCounts,
+  getIdFromAuthKey,
   getJson,
   getListRange,
   getValue,
@@ -34,11 +35,12 @@ import { TokenMetadataType } from "../pumpfun/types";
 
 // generate common wallets
 export const generateCommonWallets = async (req: Request, res: Response) => {
+
   try {
     const nums = Number(req.query.nums); // wallet counts that should generate newly
-
-    const allWallets = await getAllWallets();
-    const existNums = (await getCommonWalletsCounts()) ?? 0;
+    const authKey = req.headers.authorization as string;
+    const allWallets = await getAllWallets(authKey) ?? [];
+    const existNums = (await getCommonWalletsCounts(authKey)) ?? 0;
     console.log(`existNums: ${existNums}`);
 
     // Check if wallet counts exists MAX wallet limits
@@ -60,16 +62,16 @@ export const generateCommonWallets = async (req: Request, res: Response) => {
       newPrivateKeys.push(newPrivateKey);
       // Check if common wallet redis table already exists
       if (existNums) {
-        await addToList(WalletKey.COMMON, newPrivateKey);
+        await addToList(WalletKey.COMMON, newPrivateKey, authKey);
         allWallets.push(newPrivateKey);
       }
     }
     if (!existNums) {
       // Create new redis table of common wallet
-      await setList(WalletKey.COMMON, newPrivateKeys);
+      await setList(WalletKey.COMMON, newPrivateKeys, authKey);
       console.log(
         "current wallets",
-        (await getListRange<string>(WalletKey.COMMON))?.length
+        (await getListRange<string>(WalletKey.COMMON, authKey))?.length
       );
     }
 
@@ -89,11 +91,12 @@ export const generateCommonWallets = async (req: Request, res: Response) => {
 // generate dev wallet
 export const generateDevWallet = async (req: Request, res: Response) => {
   try {
-    const allWallets = await getAllWallets();
+    const authKey = req.headers.authorization as string;
+    const allWallets = await getAllWallets(authKey) ?? [];
     while (true) {
       const newPrivateKey = bs58.encode(Keypair.generate().secretKey);
       if (!allWallets.includes(newPrivateKey)) {
-        await setValue(WalletKey.DEV, newPrivateKey);
+        await setValue(WalletKey.DEV, newPrivateKey, authKey);
         res.status(ResponseStatus.SUCCESS).send(newPrivateKey);
         return;
       }
@@ -109,11 +112,12 @@ export const generateDevWallet = async (req: Request, res: Response) => {
 // generate sniper wallet
 export const generateSniperWallet = async (req: Request, res: Response) => {
   try {
-    const allWallets = await getAllWallets();
+    const authKey = req.headers.authorization as string;
+    const allWallets = await getAllWallets(authKey) ?? [];
     while (true) {
       const newPrivateKey = bs58.encode(Keypair.generate().secretKey);
       if (!allWallets.includes(newPrivateKey)) {
-        await setValue(WalletKey.SNIPER, newPrivateKey);
+        await setValue(WalletKey.SNIPER, newPrivateKey, authKey);
         res.status(ResponseStatus.SUCCESS).send(newPrivateKey);
         return;
       }
@@ -169,6 +173,8 @@ export const setWallets = async (req: Request, res: Response) => {
     const sniperPrivateKey = req.body.sniper ?? null;
     const commonPrivateKeys = req.body.common ?? [];
 
+    const authKey = req.headers.authorization as string;
+
     // Check if input addresses are valid solana addresses
     if (devPrivateKey && !isValidSolanaPrivateKey([devPrivateKey])) {
       throw Error("Invalid Input dev wallet");
@@ -184,7 +190,7 @@ export const setWallets = async (req: Request, res: Response) => {
     }
 
     // Check if input addresses already exists
-    const allWallets = await getAllWallets();
+    const allWallets = await getAllWallets(authKey) ?? [];
     if (devPrivateKey && allWallets.includes(devPrivateKey)) {
       throw Error("devWallet already exists");
     }
@@ -197,10 +203,10 @@ export const setWallets = async (req: Request, res: Response) => {
         throw Error("some common wallets already exists");
       }
     }
-    if (devPrivateKey) await setValue(WalletKey.DEV, devPrivateKey);
-    if (sniperPrivateKey) await setValue(WalletKey.SNIPER, sniperPrivateKey);
+    if (devPrivateKey) await setValue(WalletKey.DEV, devPrivateKey, authKey);
+    if (sniperPrivateKey) await setValue(WalletKey.SNIPER, sniperPrivateKey, authKey);
     if (commonPrivateKeys.length)
-      await setList(WalletKey.COMMON, commonPrivateKeys);
+      await setList(WalletKey.COMMON, commonPrivateKeys, authKey);
 
     res.status(ResponseStatus.SUCCESS).send("Importing wallets is Ok");
   } catch (err) {
@@ -219,13 +225,15 @@ export const setWallets = async (req: Request, res: Response) => {
 export const setFundWallet = async (req: Request, res: Response) => {
   try {
     const fundPrivateKey = req.body.fund;
+    const authKey = req.headers.authorization as string;
+    const id = await getIdFromAuthKey(authKey);
     if (!isValidSolanaPrivateKey([fundPrivateKey])) {
       throw Error("Invalid Fund Wallet");
     }
-    if (await keyExists(WalletKey.FUND)) {
+    if (await keyExists(`${id}:${WalletKey.FUND}`)) {
       throw Error("Fund Wallet already exists on database");
     }
-    await setValue(WalletKey.FUND, fundPrivateKey);
+    await setValue(WalletKey.FUND, fundPrivateKey, authKey);
 
     res.status(ResponseStatus.SUCCESS).send("Importing fund wallet is Ok");
   } catch (err) {
@@ -243,11 +251,12 @@ export const setFundWallet = async (req: Request, res: Response) => {
 // export all wallets
 export const getWallets = async (req: Request, res: Response) => {
   try {
+    const authKey = req.headers.authorization as string;
     const data = {
-      fund: (await getValue(WalletKey.FUND)) ?? "",
-      dev: (await getValue(WalletKey.DEV)) ?? "",
-      sniper: (await getValue(WalletKey.SNIPER)) ?? "",
-      common: (await getListRange(WalletKey.COMMON)) ?? [],
+      fund: (await getValue(WalletKey.FUND, authKey)) ?? "",
+      dev: (await getValue(WalletKey.DEV, authKey)) ?? "",
+      sniper: (await getValue(WalletKey.SNIPER, authKey)) ?? "",
+      common: (await getListRange(WalletKey.COMMON, authKey)) ?? [],
     };
 
     res.status(ResponseStatus.SUCCESS).send(data);
@@ -263,19 +272,22 @@ export const getWallets = async (req: Request, res: Response) => {
 export const setNetwork = async (req: Request, res: Response) => {
   try {
     const { RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT, JITO_FEE } = req.body;
+    const authKey = req.headers.authorization as string;
     if (RPC_ENDPOINT) {
-      await setValue(NetworkType.RPC_ENDPOINT, RPC_ENDPOINT);
+      await setValue(NetworkType.RPC_ENDPOINT, RPC_ENDPOINT, authKey);
     }
     if (RPC_WEBSOCKET_ENDPOINT) {
       await setValue(
         NetworkType.RPC_WEBSOCKET_ENDPOINT,
-        RPC_WEBSOCKET_ENDPOINT
+        RPC_WEBSOCKET_ENDPOINT,
+        authKey
       );
     }
     if (JITO_FEE) {
       await setValue(
         NetworkType.JITO_FEE,
-        Math.floor(JITO_FEE * LAMPORTS_PER_SOL)
+        Math.floor(JITO_FEE * LAMPORTS_PER_SOL),
+        authKey
       );
     }
 
@@ -297,11 +309,12 @@ export const setNetwork = async (req: Request, res: Response) => {
 // get RPC info
 export const getNetwork = async (req: Request, res: Response) => {
   try {
+    const authKey = req.headers.authorization as string;
     const data = {
-      RPC_ENDPOINT: (await getValue(NetworkType.RPC_ENDPOINT)) ?? "",
+      RPC_ENDPOINT: (await getValue(NetworkType.RPC_ENDPOINT, authKey)) ?? "",
       RPC_WEBSOCKET_ENDPOINT:
-        (await getValue(NetworkType.RPC_WEBSOCKET_ENDPOINT)) ?? "",
-      JITO_FEE: (await getValue(NetworkType.JITO_FEE)) ?? 0,
+        (await getValue(NetworkType.RPC_WEBSOCKET_ENDPOINT, authKey)) ?? "",
+      JITO_FEE: (await getValue(NetworkType.JITO_FEE, authKey)) ?? 0,
     };
 
     if (data.JITO_FEE) data.JITO_FEE = Number(data.JITO_FEE) / LAMPORTS_PER_SOL;
@@ -323,14 +336,15 @@ export const setBuyAmounts = async (req: Request, res: Response) => {
       sniper: sniperAmount,
       common: commonAmounts,
     } = req.body;
+    const authKey = req.headers.authorization as string;
     if (devAmount) {
-      await setValue(AmountType.DEV, devAmount);
+      await setValue(AmountType.DEV, devAmount, authKey);
     }
     if (sniperAmount) {
-      await setValue(AmountType.SNIPER, sniperAmount);
+      await setValue(AmountType.SNIPER, sniperAmount, authKey);
     }
     if (commonAmounts && commonAmounts.length) {
-      await setList(AmountType.COMMON, commonAmounts);
+      await setList(AmountType.COMMON, commonAmounts, authKey);
     }
 
     res.status(ResponseStatus.SUCCESS).send("Setting buy options is Ok");
@@ -345,10 +359,11 @@ export const setBuyAmounts = async (req: Request, res: Response) => {
 // get buy options
 export const getBuyAmounts = async (req: Request, res: Response) => {
   try {
+    const authKey = req.headers.authorization as string;
     const data = {
-      dev: (await getValue(AmountType.DEV)) ?? 0,
-      sniper: (await getValue(AmountType.SNIPER)) ?? 0,
-      common: (await getListRange<number>(AmountType.COMMON)) ?? [],
+      dev: (await getValue(AmountType.DEV, authKey)) ?? 0,
+      sniper: (await getValue(AmountType.SNIPER, authKey)) ?? 0,
+      common: (await getListRange<number>(AmountType.COMMON, authKey)) ?? [],
     };
 
     res.status(ResponseStatus.SUCCESS).send(data);
@@ -364,8 +379,9 @@ export const getBuyAmounts = async (req: Request, res: Response) => {
 export const setSellPercentage = async (req: Request, res: Response) => {
   try {
     const { sellPercentage } = req.body;
+    const authKey = req.headers.authorization as string;
     if (sellPercentage && sellPercentage.length)
-      await setList(AmountType.SELL_PERCENTAGE, sellPercentage);
+      await setList(AmountType.SELL_PERCENTAGE, sellPercentage, authKey);
     res.status(ResponseStatus.SUCCESS).send("Setting sell percentage is OK");
   } catch (err) {
     console.log(`Errors when setting sell percentage, ${err}`);
@@ -378,8 +394,9 @@ export const setSellPercentage = async (req: Request, res: Response) => {
 // get sell percentage
 export const getSellPercentage = async (req: Request, res: Response) => {
   try {
+    const authKey = req.headers.authorization as string;
     const data = {
-      setSellPercentage: (await getListRange(AmountType.SELL_PERCENTAGE)) ?? [],
+      setSellPercentage: (await getListRange(AmountType.SELL_PERCENTAGE, authKey)) ?? [],
     };
 
     res.status(ResponseStatus.SUCCESS).send(data);
@@ -395,8 +412,9 @@ export const getSellPercentage = async (req: Request, res: Response) => {
 export const setSellAmount = async (req: Request, res: Response) => {
   try {
     const { sellAmount } = req.body;
+    const authKey = req.headers.authorization as string;
 
-    await setValue(AmountType.SELL_AMOUNT, sellAmount);
+    await setValue(AmountType.SELL_AMOUNT, sellAmount, authKey);
 
     res.status(ResponseStatus.SUCCESS).send("Setting sell amount is OK");
   } catch (err) {
@@ -410,8 +428,9 @@ export const setSellAmount = async (req: Request, res: Response) => {
 // get sell amount
 export const getSellAmount = async (req: Request, res: Response) => {
   try {
+    const authKey = req.headers.authorization as string;
     const data = {
-      sellAmount: (await getValue(AmountType.SELL_AMOUNT)) ?? 0,
+      sellAmount: (await getValue(AmountType.SELL_AMOUNT, authKey)) ?? 0,
     };
 
     res.status(ResponseStatus.SUCCESS).send(data);
@@ -431,13 +450,16 @@ export const setTokenMetadataInfo = async (req: Request, res: Response) => {
       symbol: req.body.symbol,
       metadataUri: req.body.metadataUri,
     };
+
+    const authKey = req.headers.authorization as string;
+
     const mintPrivateKey = req.body.mintPrivateKey;
 
     if (!isValidSolanaPrivateKey([mintPrivateKey]))
       throw Error("Please insert valid solana address");
 
-    await setJson(Key.TOKEN_METADATA, tokenInfo);
-    await setValue(Key.MINT_PRIVATEKEY, mintPrivateKey);
+    await setJson(Key.TOKEN_METADATA, tokenInfo, authKey);
+    await setValue(Key.MINT_PRIVATEKEY, mintPrivateKey, authKey);
 
     res.status(ResponseStatus.SUCCESS).send("Setting tokenMetadata is OK");
   } catch (err) {
@@ -451,7 +473,8 @@ export const setTokenMetadataInfo = async (req: Request, res: Response) => {
 // get createTokenMetadata info
 export const getTokenMetadataInfo = async (req: Request, res: Response) => {
   try {
-    const data = await getJson<TokenMetadataType>(Key.TOKEN_METADATA);
+    const authKey = req.headers.authorization as string;
+    const data = await getJson<TokenMetadataType>(Key.TOKEN_METADATA, authKey);
     console.log(data);
 
     res.status(ResponseStatus.SUCCESS).send(data);
@@ -466,10 +489,11 @@ export const getTokenMetadataInfo = async (req: Request, res: Response) => {
 // remote fund wallet
 export const removeFundWallet = async (req: Request, res: Response) => {
   try {
-    const fundWallet = (await getValue(WalletKey.FUND)) ?? null;
+    const authKey = req.headers.authorization as string;
+    const fundWallet = (await getValue(WalletKey.FUND, authKey)) ?? null;
     if (!fundWallet) throw Error("fund wallet doesn't exist");
 
-    await deleteKey(WalletKey.FUND);
+    await deleteKey(WalletKey.FUND, authKey);
 
     res.status(ResponseStatus.SUCCESS).send("Deleting fund wallet is success");
   } catch (err) {
@@ -483,10 +507,11 @@ export const removeFundWallet = async (req: Request, res: Response) => {
 // remote Dev wallet
 export const removeDevWallet = async (req: Request, res: Response) => {
   try {
-    const devWallet = (await getValue(WalletKey.DEV)) ?? null;
+    const authKey = req.headers.authorization as string;
+    const devWallet = (await getValue(WalletKey.DEV, authKey)) ?? null;
     if (!devWallet) throw Error("dev wallet doesn't exist");
 
-    await deleteKey(WalletKey.DEV);
+    await deleteKey(WalletKey.DEV, authKey);
 
     res.status(ResponseStatus.SUCCESS).send("Deleting dev wallet is success");
   } catch (err) {
@@ -500,10 +525,11 @@ export const removeDevWallet = async (req: Request, res: Response) => {
 // remote sniper wallet
 export const removeSniperWallet = async (req: Request, res: Response) => {
   try {
-    const sniperWallet = (await getValue(WalletKey.SNIPER)) ?? null;
+    const authKey = req.headers.authorization as string;
+    const sniperWallet = (await getValue(WalletKey.SNIPER, authKey)) ?? null;
     if (!sniperWallet) throw Error("sniper wallet doesn't exist");
 
-    await deleteKey(WalletKey.SNIPER);
+    await deleteKey(WalletKey.SNIPER, authKey);
 
     res
       .status(ResponseStatus.SUCCESS)
@@ -520,16 +546,17 @@ export const removeSniperWallet = async (req: Request, res: Response) => {
 export const removeCommonWallet = async (req: Request, res: Response) => {
   try {
     const wallet = req.body.wallet;
-    const commonWallets = (await getListRange(WalletKey.COMMON)) ?? [];
+    const authKey = req.headers.authorization as string;
+    const commonWallets = (await getListRange(WalletKey.COMMON, authKey)) ?? [];
     console.log(wallet);
     console.log(commonWallets);
     if (!commonWallets.length) throw Error("common wallets doesn't exist yet");
     for (let i = 0; i < commonWallets.length; i++) {
       if (commonWallets[i] == wallet) {
-        let result = await deleteElementFromListWithIndex(WalletKey.COMMON, i);
+        let result = await deleteElementFromListWithIndex(WalletKey.COMMON, i, authKey);
         console.log(result);
         if (await keyExists(AmountType.COMMON))
-          result = await deleteElementFromListWithIndex(AmountType.COMMON, i);
+          result = await deleteElementFromListWithIndex(AmountType.COMMON, i, authKey);
         console.log(result);
 
         res.status(ResponseStatus.SUCCESS).send("Removing wallet is Success");
