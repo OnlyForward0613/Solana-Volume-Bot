@@ -3,3 +3,6 @@ node_modules/
 
 # env variables
 .env
+
+# Don't need to upload build files
+dist/  
