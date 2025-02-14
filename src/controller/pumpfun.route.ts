@@ -5,7 +5,7 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { ResponseStatus } from "../core/ApiResponse";
 import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
 import { getArray, getJson, getValue } from "../cache/query";
-import { JITO_FEE, userConnections } from "../config";
+import { DEFAULT_JITO_FEE, jitoFees, userConnections } from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import { getSPLBalance, isFundSufficent, isValidSolanaPrivateKey } from "../helper/util";
 import { DEFAULT_POW } from "../pumpfun/sdk";
@@ -37,7 +37,7 @@ export async function launchToken(req: Request, res: Response) {
     if (!sniperSolAmount) throw Error("sniper solAmount doesn't exist");
     if (!sniperSK) throw Error("sniper wallet doesn't exist");
 
-    const jitoFee =  Number(await getValue(NetworkType.JITO_FEE, authKey)) ?? JITO_FEE;
+    const jitoFee =  jitoFees[authKey];
     
     const checkers = commonSolAmounts.map(value => value > 0);
     
@@ -120,7 +120,7 @@ export async function distributionSol(req: Request, res: Response) {
     walletSKs.push(...commonWalletSKs);
 
     if (!solAmounts.length) throw Error("Any wallet doesn't exsit to fund");
-    const jitoFee =  Number(await getValue(NetworkType.JITO_FEE, authKey)) ?? JITO_FEE;
+    const jitoFee =  jitoFees[authKey];
 
     const connection = userConnections[authKey];
     const result = await distributionService(
@@ -161,7 +161,7 @@ export const gatherFund = async (req: Request, res: Response) => {
     
     if (!walletSKs?.length) throw Error("There isn't any wallet to fund");
     
-    const jitoFee =  Number(await getValue(NetworkType.JITO_FEE, authKey)) ?? JITO_FEE;
+    const jitoFee =  jitoFees[authKey];
 
     const connection = userConnections[authKey];
     const result = await gatherService(
@@ -204,7 +204,7 @@ export const sellByPercentage = async (req: Request, res: Response) => {
       walletAccount.publicKey,
     );
 
-    const jitoFee = Number(await getValue(NetworkType.JITO_FEE, authKey)) ?? JITO_FEE;
+    const jitoFee = jitoFees[authKey];
     
     if (!tokenFloatAmount) throw Error("Don't have any token in the wallet");
     let tokenAmount = BigInt(Math.floor(DEFAULT_POW * tokenFloatAmount * percentage / 100));
@@ -254,7 +254,7 @@ export const sellByAmount = async (req: Request, res: Response) => {
 
     if (!tokenFloatAmount || tokenFloatAmount < tokenAmount) throw Error("Don't have sufficent token in the wallet");
    
-    const jitoFee = Number(await getValue(NetworkType.JITO_FEE, authKey)) ?? JITO_FEE;
+    const jitoFee = jitoFees[authKey];
     
     const result = await sellService(
       {
@@ -301,7 +301,7 @@ export const sellDumpAll = async (req: Request, res: Response) => {
     let sellTokenAmounts: bigint[] = [];
     let sellAccounts: Keypair[] = [];
     const connection = userConnections[authKey];
-    
+
     await Promise.all(walletAccounts.map(async (account, index) => {
       let amount = await getSPLBalance(connection, mint.publicKey, account.publicKey);
       if (amount && amount > 0) {
@@ -312,8 +312,8 @@ export const sellDumpAll = async (req: Request, res: Response) => {
 
     if (!sellAccounts.length) throw Error("Any wallet dosn't have any token");
     
-    const jitoFee = Number(await getValue(NetworkType.JITO_FEE, authKey)) ?? JITO_FEE;
-
+    const jitoFee = jitoFees[authKey];
+    
     const result = await sellDumpAllService(
       {
         payer: fundAccount,

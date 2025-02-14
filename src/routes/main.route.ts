@@ -97,8 +97,10 @@ router.get("/admin/get-all-users", checkAuthAdmin, adminGetAllUsers);
 router.post("/admin/delete-user", checkAuthAdmin, validator(schema.deleteUser), adminDeleteUser);
 router.post("/admin/edit-user", checkAuthAdmin, validator(schema.editUser), adminEditUsername);
 
-// auth check
+// login based on authKey
 router.post("/auth/key", validator(schema.authKeyCheck), authKeyCheckWhileEntering);
+
+// login admin page
 router.post("/auth/admin", checkAuthKey, validator(schema.authAdmin), adminCheckWhileEnteringDashboard);
 
 export default router;
