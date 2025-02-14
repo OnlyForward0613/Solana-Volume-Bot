@@ -32,17 +32,27 @@ export async function launchTokenService(
   try {
     let boundingCurveAccount = await sdk.getBondingCurveAccount(mint.publicKey);
     console.log(boundingCurveAccount);
-
+    
+    // configure lookup table
+    lutProviders["first"] = new LookupTableProvider();
+    await lutProviders["first"].getLookupTable(new PublicKey("3Q3epsDP64Z4YUr9u7UYBENzJLafwAnxRq41RmMf8X3R"));
     if (!boundingCurveAccount) {
 
-      // configure lookup table
-      lutProviders["first"] = new LookupTableProvider();
-      lutProviders["first"].getLookupTable(new PublicKey("F3JrzXceYGjADdrd6RY7gS2gkiJxUzv3FQgW2KMQHLvP"));
-    
       let globalAccount = await sdk.getGlobalAccount();
       if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
 
       console.log("jito fee: ", jitoFee);
+      console.log("global account: ", globalAccount);
+      console.log("fundAccount", fundAccount.publicKey.toBase58());
+      console.log("devAccount", devAccount.publicKey.toBase58());
+      console.log("sniperAccount", sniperAccount.publicKey.toBase58());
+      console.log("mint", mint.publicKey.toBase58());
+      console.log("devAmount", devAmount);
+      console.log("sniperAmount", sniperAmount);
+      console.log("commonAccounts", commonAccounts.map(account => account.publicKey.toBase58()));
+      console.log("commonAmounts", commonAmounts);
+      console.log("tokenInfo", tokenInfo);
+      
       let createResult = await sdk.launchToken(
         fundAccount, // payer
         mint,
@@ -83,6 +93,8 @@ export async function launchTokenService(
 
       let globalAccount = await sdk.getGlobalAccount();
       if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
+
+      console.log("only second bundle");
 
       const secondResult = await sdk.firstBundleAfterCreation(
         devAccount,
@@ -337,6 +349,8 @@ export const sellDumpAllService = async (
   try {
     let globalAccount = await sdk.getGlobalAccount();
     if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
+    
+    lutProviders["first"] = new LookupTableProvider();
     
     const result =  await sdk.sellDumpAll(
       payer,

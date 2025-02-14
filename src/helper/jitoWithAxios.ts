@@ -63,14 +63,14 @@ export const jitoWithAxios = async (
     //   return { confirmed: false };
     // }
     // console.log("simulation success");
-    // return { confirmed: true, content: "Bundle simulation is Ok" };s
+    // return { confirmed: true, content: "Bundle simulation is Ok" };
 
     const endpoints = [
-      'https://mainnet.block-engine.jito.wtf/api/v1/bundles',
+      // 'https://mainnet.block-engine.jito.wtf/api/v1/bundles',
       // 'https://amsterdam.mainnet.block-engine.jito.wtf/api/v1/bundles',
       // 'https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles',
       // 'https://ny.mainnet.block-engine.jito.wtf/api/v1/bundles',
-      // 'https://tokyo.mainnet.block-engine.jito.wtf/api/v1/bundles',
+      'https://tokyo.mainnet.block-engine.jito.wtf/api/v1/bundles',
     ];
 
     const requests = endpoints.map((url) =>
@@ -83,9 +83,11 @@ export const jitoWithAxios = async (
     );
 
     console.log('Sending transactions to endpoints...');
-
+    
     const results = await Promise.all(requests.map((p) => p.catch((e) => e)));
     
+    // console.log("Jito requests", results);
+
     const successfulResults = results.filter((result) => !(result instanceof Error));
 
     if (successfulResults.length > 0) {
