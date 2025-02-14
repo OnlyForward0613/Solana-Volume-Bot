@@ -14,7 +14,7 @@ export async function keyExists(...keys: string[]) {
 }
 
 export async function deleteKey(key: Key | DynamicKeyType, authKey: string) {
-  const id = await getIdFromAuthKey(authKey) as string;
+  const id = (await getIdFromAuthKey(authKey)) as string;
   return cache.del(`${id}:${key}`);
 }
 
@@ -32,7 +32,7 @@ export async function deleteElementFromListWithIndex(
   index: number,
   authKey: string
 ) {
-  const id = await getIdFromAuthKey(authKey) as string;
+  const id = (await getIdFromAuthKey(authKey)) as string;
   const type = await cache.type(`${id}:${key}`);
   if (type !== TYPES.LIST) return null;
 
@@ -55,8 +55,9 @@ export async function setValue(
   authKey: string,
   expireAt: Date | null = null
 ) {
-  const id = await getIdFromAuthKey(authKey) as string;
-  if (expireAt) return cache.pSetEx(`${id}:${key}`, expireAt.getTime(), `${value}`);
+  const id = (await getIdFromAuthKey(authKey)) as string;
+  if (expireAt)
+    return cache.pSetEx(`${id}:${key}`, expireAt.getTime(), `${value}`);
   else return cache.set(`${id}:${key}`, `${value}`);
 }
 
@@ -93,7 +94,7 @@ export async function setJson(
 }
 
 export async function getJson<T>(key: Key | DynamicKeyType, authKey: string) {
-  const id = await getIdFromAuthKey(authKey) as string;
+  const id = (await getIdFromAuthKey(authKey)) as string;
   const type = await cache.type(`${id}:${key}`);
   if (type !== TYPES.STRING) return null;
 
@@ -109,7 +110,7 @@ export async function setList(
   authKey: string,
   expireAt: Date | null = null
 ) {
-  const id = await getIdFromAuthKey(authKey) as string;
+  const id = (await getIdFromAuthKey(authKey)) as string;
   const multi = cache.multi();
   const values: any[] = [];
   for (const i in list) {
@@ -121,8 +122,12 @@ export async function setList(
   return await multi.exec();
 }
 
-export async function addToList(key: Key | DynamicKeyType, value: string, authKey: string) {
-  const id = await getIdFromAuthKey(authKey) as string;
+export async function addToList(
+  key: Key | DynamicKeyType,
+  value: string,
+  authKey: string
+) {
+  const id = (await getIdFromAuthKey(authKey)) as string;
   const type = await cache.type(`${id}:${key}`);
   if (type !== TYPES.LIST) return null;
 
@@ -136,7 +141,7 @@ export async function getListRange<T>(
   start = 0,
   end = -1
 ) {
-  const id = await getIdFromAuthKey(authKey) as string;
+  const id = (await getIdFromAuthKey(authKey)) as string;
   const type = await cache.type(`${id}:${key}`);
   if (type !== TYPES.LIST) return null;
 
@@ -166,9 +171,11 @@ export async function getHash<T>(key: Key | DynamicKeyType) {
   // return null;
 }
 
+// get counts of array stored in Json
 export async function getCommonWalletsCounts(authKey: string) {
-  const id = await getIdFromAuthKey(authKey) as string;
-  return await cache.lLen(`${id}:${WalletKey.COMMON}`);
+  const id = (await getIdFromAuthKey(authKey)) as string;
+  return JSON.parse((await cache.get(`${id}:${WalletKey.COMMON}`)) as string)
+    .length;
 }
 
 export async function setOrderedSet(
@@ -332,4 +339,87 @@ export async function adminCheck(authKey: string) {
 export async function getIdFromAuthKey(authKey: string) {
   const id = await cache.get(`id:${authKey}`);
   if (id) return id;
+}
+
+// Array handle
+export async function storeArray(
+  key: Key | DynamicKeyType,
+  array: any[],
+  authKey: string
+) {
+  const id = (await getIdFromAuthKey(authKey)) as string;
+  return await cache.set(`${id}:${key}`, JSON.stringify(array));
+}
+
+export async function getArray<T>(
+  key: Key | DynamicKeyType,
+  authKey: string
+): Promise<T[] | null> {
+  const id = (await getIdFromAuthKey(authKey)) as string;
+  const type = await cache.type(`${id}:${key}`);
+  if (type !== TYPES.STRING) return null;
+
+  const json = await getValue(key, authKey);
+  if (json) return JSON.parse(json) as T[];
+
+  return [];
+}
+
+export async function editArrayByIndex(
+  key: Key | DynamicKeyType,
+  index: number,
+  value: any,
+  authKey: string
+) {
+  const id = (await getIdFromAuthKey(authKey)) as string;
+  const type = await cache.type(`${id}:${key}`);
+  if (type !== TYPES.STRING) return null;
+  const array = await getArray(key, authKey);
+  if (!array) return null;
+  array[index] = value;
+  return await storeArray(key, array, authKey);
+}
+
+export async function deleteArrayByIndex(
+  key: Key | DynamicKeyType,
+  index: number,
+  authKey: string
+) {
+  const id = (await getIdFromAuthKey(authKey)) as string;
+  const type = await cache.type(`${id}:${key}`);
+  if (type !== TYPES.STRING) return null;
+  const array = await getArray(key, authKey);
+  if (!array) return null;
+  array.splice(index, 1);
+  return await storeArray(key, array, authKey);
+}
+
+export async function deleteArrayByWalletKey(
+  key: Key | DynamicKeyType,
+  walletKey: string,
+  authKey: string
+) {
+  const id = (await getIdFromAuthKey(authKey)) as string;
+  const type = await cache.type(`${id}:${key}`);
+  if (type !== TYPES.STRING) return null;
+  const array = await getArray(key, authKey);
+  if (!array) return null;
+  const index = array.indexOf(walletKey);
+  if (index === -1) return null;
+  array.splice(index, 1);
+  return await storeArray(key, array, authKey);
+}
+
+export async function addValueToArray(
+  key: Key | DynamicKeyType,
+  value: any,
+  authKey: string
+) {
+  const id = (await getIdFromAuthKey(authKey)) as string;
+  const type = await cache.type(`${id}:${key}`);
+  if (type !== TYPES.STRING) return null;
+  const array = await getArray(key, authKey);
+  if (!array) return null;
+  array.push(value);
+  return await storeArray(key, array, authKey);
 }

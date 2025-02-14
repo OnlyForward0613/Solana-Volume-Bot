@@ -3,24 +3,25 @@ import fs from "fs";
 import path from "path";
 import { getAllWallets } from "../cache/repository/WalletCache";
 import {
-  addToList,
   addUser,
+  addValueToArray,
   adminCheck,
   authKeyCheck,
-  deleteElementFromListWithIndex,
+  deleteArrayByIndex,
+  deleteArrayByWalletKey,
   deleteKey,
   deleteUserByAuthKey,
   editUser,
   getAllUsers,
+  getArray,
   getCommonWalletsCounts,
   getIdFromAuthKey,
   getJson,
-  getListRange,
   getValue,
   keyExists,
   setJson,
-  setList,
   setValue,
+  storeArray,
 } from "../cache/query";
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -39,7 +40,9 @@ export const generateCommonWallets = async (req: Request, res: Response) => {
   try {
     const nums = Number(req.query.nums); // wallet counts that should generate newly
     const authKey = req.headers.authorization as string;
+    console.log(nums, authKey);
     const allWallets = await getAllWallets(authKey) ?? [];
+    console.log("allWallets", allWallets);
     const existNums = (await getCommonWalletsCounts(authKey)) ?? 0;
     console.log(`existNums: ${existNums}`);
 
@@ -62,16 +65,16 @@ export const generateCommonWallets = async (req: Request, res: Response) => {
       newPrivateKeys.push(newPrivateKey);
       // Check if common wallet redis table already exists
       if (existNums) {
-        await addToList(WalletKey.COMMON, newPrivateKey, authKey);
+        await addValueToArray(WalletKey.COMMON, newPrivateKey, authKey);
         allWallets.push(newPrivateKey);
       }
     }
     if (!existNums) {
       // Create new redis table of common wallet
-      await setList(WalletKey.COMMON, newPrivateKeys, authKey);
+      await storeArray(WalletKey.COMMON, newPrivateKeys, authKey);
       console.log(
         "current wallets",
-        (await getListRange<string>(WalletKey.COMMON, authKey))?.length
+        (await getArray<string>(WalletKey.COMMON, authKey))?.length
       );
     }
 
@@ -206,7 +209,7 @@ export const setWallets = async (req: Request, res: Response) => {
     if (devPrivateKey) await setValue(WalletKey.DEV, devPrivateKey, authKey);
     if (sniperPrivateKey) await setValue(WalletKey.SNIPER, sniperPrivateKey, authKey);
     if (commonPrivateKeys.length)
-      await setList(WalletKey.COMMON, commonPrivateKeys, authKey);
+      await storeArray(WalletKey.COMMON, commonPrivateKeys, authKey);
 
     res.status(ResponseStatus.SUCCESS).send("Importing wallets is Ok");
   } catch (err) {
@@ -256,7 +259,7 @@ export const getWallets = async (req: Request, res: Response) => {
       fund: (await getValue(WalletKey.FUND, authKey)) ?? "",
       dev: (await getValue(WalletKey.DEV, authKey)) ?? "",
       sniper: (await getValue(WalletKey.SNIPER, authKey)) ?? "",
-      common: (await getListRange(WalletKey.COMMON, authKey)) ?? [],
+      common: (await getArray<string>(WalletKey.COMMON, authKey)) ?? [],
     };
 
     res.status(ResponseStatus.SUCCESS).send(data);
@@ -344,7 +347,7 @@ export const setBuyAmounts = async (req: Request, res: Response) => {
       await setValue(AmountType.SNIPER, sniperAmount, authKey);
     }
     if (commonAmounts && commonAmounts.length) {
-      await setList(AmountType.COMMON, commonAmounts, authKey);
+      await storeArray(AmountType.COMMON, commonAmounts, authKey);
     }
 
     res.status(ResponseStatus.SUCCESS).send("Setting buy options is Ok");
@@ -363,7 +366,7 @@ export const getBuyAmounts = async (req: Request, res: Response) => {
     const data = {
       dev: (await getValue(AmountType.DEV, authKey)) ?? 0,
       sniper: (await getValue(AmountType.SNIPER, authKey)) ?? 0,
-      common: (await getListRange<number>(AmountType.COMMON, authKey)) ?? [],
+      common: (await getArray<number>(AmountType.COMMON, authKey)) ?? [],
     };
 
     res.status(ResponseStatus.SUCCESS).send(data);
@@ -381,7 +384,7 @@ export const setSellPercentage = async (req: Request, res: Response) => {
     const { sellPercentage } = req.body;
     const authKey = req.headers.authorization as string;
     if (sellPercentage && sellPercentage.length)
-      await setList(AmountType.SELL_PERCENTAGE, sellPercentage, authKey);
+      await storeArray(AmountType.SELL_PERCENTAGE, sellPercentage, authKey);
     res.status(ResponseStatus.SUCCESS).send("Setting sell percentage is OK");
   } catch (err) {
     console.log(`Errors when setting sell percentage, ${err}`);
@@ -396,7 +399,7 @@ export const getSellPercentage = async (req: Request, res: Response) => {
   try {
     const authKey = req.headers.authorization as string;
     const data = {
-      setSellPercentage: (await getListRange(AmountType.SELL_PERCENTAGE, authKey)) ?? [],
+      setSellPercentage: (await getArray<number>(AmountType.SELL_PERCENTAGE, authKey)) ?? [],
     };
 
     res.status(ResponseStatus.SUCCESS).send(data);
@@ -547,23 +550,10 @@ export const removeCommonWallet = async (req: Request, res: Response) => {
   try {
     const wallet = req.body.wallet;
     const authKey = req.headers.authorization as string;
-    const commonWallets = (await getListRange(WalletKey.COMMON, authKey)) ?? [];
-    console.log(wallet);
-    console.log(commonWallets);
-    if (!commonWallets.length) throw Error("common wallets doesn't exist yet");
-    for (let i = 0; i < commonWallets.length; i++) {
-      if (commonWallets[i] == wallet) {
-        let result = await deleteElementFromListWithIndex(WalletKey.COMMON, i, authKey);
-        console.log(result);
-        if (await keyExists(AmountType.COMMON))
-          result = await deleteElementFromListWithIndex(AmountType.COMMON, i, authKey);
-        console.log(result);
-
-        res.status(ResponseStatus.SUCCESS).send("Removing wallet is Success");
-        return;
-      }
-    }
-    throw Error("Removeing wallet failed");
+    if (!wallet) throw Error("Please insert wallet address");
+    await deleteArrayByWalletKey(WalletKey.COMMON, wallet, authKey);
+    
+    res.status(ResponseStatus.SUCCESS).send("Deleting common wallet is success");
   } catch (err) {
     console.log(`Errors when removing common wallet, ${err}`);
     res

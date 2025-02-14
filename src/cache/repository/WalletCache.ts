@@ -1,6 +1,6 @@
 import { Wallets } from "../../types";
 import { DynamicKey, getDynamicKey, WalletKey, WalletType } from "../keys";
-import { getIdFromAuthKey, getListRange, getValue } from "../query";
+import { getArray, getIdFromAuthKey, getValue } from "../query";
 
 export function getDevWalletKey() {
   return getDynamicKey(DynamicKey.WALLET, WalletType.DEV);
@@ -25,7 +25,7 @@ export async function getAllWallets(authKey: string) {
       fund: (await getValue(WalletKey.DEV, authKey)) ?? "",
       dev: (await getValue(WalletKey.DEV, authKey)) ?? "",
       sniper: (await getValue(WalletKey.SNIPER, authKey)) ?? "",
-      common: (await getListRange(WalletKey.COMMON, authKey)) ?? [],
+      common: (await getArray<string>(WalletKey.COMMON, authKey)) ?? [],
     } as Wallets;
 
     const walletSKs: string[] = [];

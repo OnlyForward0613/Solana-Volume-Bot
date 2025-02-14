@@ -3,8 +3,8 @@ import { launchTokenService, distributionService, gatherService, sellService, se
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { ResponseStatus } from "../core/ApiResponse";
-import { AmountType, Key, NetworkType, WalletKey, WalletType } from "../cache/keys";
-import { getJson, getListRange, getValue } from "../cache/query";
+import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
+import { getArray, getJson, getValue } from "../cache/query";
 import { connection, JITO_FEE } from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import { getSPLBalance, isFundSufficent, isValidSolanaPrivateKey } from "../helper/util";
@@ -16,14 +16,14 @@ export async function launchToken(req: Request, res: Response) {
     const authKey = req.headers.authorization as string;
     const devSK = await getValue(WalletKey.DEV, authKey) ?? null
     const sniperSK = await getValue(WalletKey.SNIPER, authKey) ?? null
-    const commonSKs = await getListRange<string>(WalletKey.COMMON, authKey) ?? [];
+    const commonSKs = await getArray<string>(WalletKey.COMMON, authKey) ?? [];
     const fundPK = await getValue(WalletKey.FUND, authKey) ?? null
     
     const mintSK = await getValue(Key.MINT_PRIVATEKEY, authKey) ?? null;
 
     const devSolAmount = Number(await getValue(AmountType.DEV, authKey)) ?? 0;
     const sniperSolAmount = Number(await getValue(AmountType.SNIPER, authKey)) ?? 0; 
-    const commonSolAmounts = await getListRange<number>(AmountType.COMMON, authKey) ?? [];
+    const commonSolAmounts = await getArray<number>(AmountType.COMMON, authKey) ?? [];
 
     const tokenInfo = await getJson<TokenMetadataType>(Key.TOKEN_METADATA, authKey) ?? null;
     if (!tokenInfo) throw Error("token metadata doesn't exist"); 
@@ -99,7 +99,7 @@ export async function distributionSol(req: Request, res: Response) {
     const authKey = req.headers.authorization as string;
     const fundWalletSK = await getValue(WalletKey.FUND, authKey) ?? "";
     const sniperWalletSK = await getValue(WalletKey.SNIPER, authKey) ?? "";
-    const commonWalletSKs: string[] = await getListRange(WalletKey.COMMON, authKey) ?? [];
+    const commonWalletSKs: string[] = await getArray<string>(WalletKey.COMMON, authKey) ?? [];
     const walletSKs: string[] = [];
     const solAmounts: number[] = [];
     console.log(commonAmounts);
@@ -153,7 +153,7 @@ export const gatherFund = async (req: Request, res: Response) => {
     const sniperWalletSK = await getValue(WalletKey.SNIPER, authKey) ?? null;
     if (sniperWalletSK) walletSKs.push(sniperWalletSK);
 
-    const commonWalletSKs = await getListRange<string>(WalletKey.COMMON, authKey);
+    const commonWalletSKs = await getArray<string>(WalletKey.COMMON, authKey);
     if (commonWalletSKs?.length) walletSKs.push(...commonWalletSKs);
     
     if (!walletSKs?.length) throw Error("There isn't any wallet to fund");
@@ -274,7 +274,7 @@ export const sellDumpAll = async (req: Request, res: Response) => {
     const devSK = await getValue(WalletKey.DEV, authKey) ?? null
     const sniperSK = await getValue(WalletKey.SNIPER, authKey) ?? null
     const fundSK = await getValue(WalletKey.FUND, authKey) ?? null;
-    const commonSKs = await getListRange<string>(WalletKey.COMMON, authKey) ?? [];
+    const commonSKs = await getArray<string>(WalletKey.COMMON, authKey) ?? [];
     const mintSK = await getValue(Key.MINT_PRIVATEKEY, authKey) ?? null;
 
     if (!mintSK) throw Error("Mint addresss doen't exist");
