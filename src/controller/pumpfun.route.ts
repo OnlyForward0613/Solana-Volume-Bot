@@ -5,7 +5,7 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { ResponseStatus } from "../core/ApiResponse";
 import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
 import { getArray, getJson, getValue } from "../cache/query";
-import { connection, JITO_FEE } from "../config";
+import { JITO_FEE, userConnections } from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import { getSPLBalance, isFundSufficent, isValidSolanaPrivateKey } from "../helper/util";
 import { DEFAULT_POW } from "../pumpfun/sdk";
@@ -54,6 +54,8 @@ export async function launchToken(req: Request, res: Response) {
     const sniperAccount = Keypair.fromSecretKey(bs58.decode(sniperSK));
     const mint = Keypair.fromSecretKey(bs58.decode(mintSK));
 
+    const connection = userConnections[authKey]
+
     if (!isFundSufficent(devAccount.publicKey, devAmount, connection)) 
       throw Error("Dev wallet doesn' have enough fund");
 
@@ -77,7 +79,7 @@ export async function launchToken(req: Request, res: Response) {
       }, 
       tokenInfo,
       mint,
-      connection,
+      authKey,
       jitoFee,
     );
 
@@ -120,6 +122,7 @@ export async function distributionSol(req: Request, res: Response) {
     if (!solAmounts.length) throw Error("Any wallet doesn't exsit to fund");
     const jitoFee =  Number(await getValue(NetworkType.JITO_FEE, authKey)) ?? JITO_FEE;
 
+    const connection = userConnections[authKey];
     const result = await distributionService(
       { 
         fundWalletSK,
@@ -160,6 +163,7 @@ export const gatherFund = async (req: Request, res: Response) => {
     
     const jitoFee =  Number(await getValue(NetworkType.JITO_FEE, authKey)) ?? JITO_FEE;
 
+    const connection = userConnections[authKey];
     const result = await gatherService(
       { 
         fundWalletSK, 
@@ -192,6 +196,8 @@ export const sellByPercentage = async (req: Request, res: Response) => {
     if (!mintSK) throw Error("Mint address doesn't exist");
     const mintAccount = Keypair.fromSecretKey(bs58.decode(mintSK));
     const walletAccount = Keypair.fromSecretKey(bs58.decode(walletSK));
+
+    const connection = userConnections[authKey];
     const tokenFloatAmount = await getSPLBalance(
       connection,
       mintAccount.publicKey,
@@ -208,8 +214,8 @@ export const sellByPercentage = async (req: Request, res: Response) => {
         walletAccount,
         mintPubKey: mintAccount.publicKey,
         tokenAmount
-      }, 
-      connection,
+      },
+      authKey, 
       jitoFee,
     );
 
@@ -236,6 +242,8 @@ export const sellByAmount = async (req: Request, res: Response) => {
     if (!mintSK) throw Error("Mint address doesn't exist");
     const mintAccount = Keypair.fromSecretKey(bs58.decode(mintSK));
     const walletAccount = Keypair.fromSecretKey(bs58.decode(walletSK));
+
+    const connection = userConnections[authKey];
     const tokenFloatAmount = await getSPLBalance(
       connection,
       mintAccount.publicKey,
@@ -254,7 +262,7 @@ export const sellByAmount = async (req: Request, res: Response) => {
         mintPubKey: mintAccount.publicKey,
         tokenAmount: BigInt(Math.floor(DEFAULT_POW * tokenAmount)),
       }, 
-      connection,
+      authKey,
       jitoFee,
     );
 
@@ -290,8 +298,10 @@ export const sellDumpAll = async (req: Request, res: Response) => {
 
     let walletAccounts: Keypair[] = [devAccount, sniperAccount, ...commonAccounts];
 
-    let sellTokenAmounts: bigint[] = []
-    let sellAccounts: Keypair[] = []
+    let sellTokenAmounts: bigint[] = [];
+    let sellAccounts: Keypair[] = [];
+    const connection = userConnections[authKey];
+    
     await Promise.all(walletAccounts.map(async (account, index) => {
       let amount = await getSPLBalance(connection, mint.publicKey, account.publicKey);
       if (amount && amount > 0) {
@@ -311,7 +321,7 @@ export const sellDumpAll = async (req: Request, res: Response) => {
         sellTokenAmounts,
         mintPubKey: mint.publicKey
       },
-      connection,
+      authKey,
       jitoFee,
     );
 

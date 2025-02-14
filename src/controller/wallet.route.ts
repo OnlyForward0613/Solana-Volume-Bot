@@ -23,10 +23,16 @@ import {
   setValue,
   storeArray,
 } from "../cache/query";
-import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import {Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
-import { configNetwork, MAX_COMMON_WALLETS_NUMS, sdk } from "../config";
+import { 
+  configNetwork, 
+  MAX_COMMON_WALLETS_NUMS, 
+  PRIVATE_RPC_ENDPOINT, 
+  PRIVATE_RPC_WEBSOCKET_ENDPOINT, 
+  pumpFunSDKs, 
+} from "../config";
 import {
   createNewPrivateKeyBasedonAssets,
   isValidSolanaPrivateKey,
@@ -136,6 +142,7 @@ export const generateSniperWallet = async (req: Request, res: Response) => {
 // generate mint wallet
 export const generateMintWallet = async (req: Request, res: Response) => {
   try {
+    const authKey = req.headers.authorization as string;
     const tokenPath = path.join(__dirname, "../../upload/.keys/vanity.json");
     const tokenData = JSON.parse(fs.readFileSync(tokenPath, "utf8"));
     console.log(`Generating ${tokenData} from ` + tokenPath)
@@ -143,11 +150,13 @@ export const generateMintWallet = async (req: Request, res: Response) => {
       Keypair.fromSecretKey(bs58.decode(item.secretKey))
     ));
 
+    const sdk = pumpFunSDKs[authKey];
     while (keyPairs.length > 0) {
       const index = Math.floor(Math.random() * keyPairs.length);
       const selectedKeyPair = keyPairs[index];
 
       const newPrivateKey = bs58.encode(selectedKeyPair.secretKey);
+
       const existsInBondingCurve = await sdk.getBondingCurveAccount(selectedKeyPair.publicKey);
       
       if (!existsInBondingCurve) {
@@ -294,9 +303,8 @@ export const setNetwork = async (req: Request, res: Response) => {
       );
     }
 
-    if (RPC_ENDPOINT && RPC_WEBSOCKET_ENDPOINT) {
-      configNetwork(RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT);
-    }
+    if (RPC_ENDPOINT && RPC_WEBSOCKET_ENDPOINT) configNetwork(RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT, authKey);
+    else configNetwork(PRIVATE_RPC_ENDPOINT, PRIVATE_RPC_WEBSOCKET_ENDPOINT, authKey);
 
     res
       .status(ResponseStatus.SUCCESS)
@@ -639,6 +647,14 @@ export const authKeyCheckWhileEntering = async (
     const { authKey } = req.body;
     const result = await authKeyCheck(authKey);
     if (result) {
+      
+      const RPC_ENDPOINT = await getValue(NetworkType.RPC_ENDPOINT, authKey) ?? null;
+      const RPC_WEBSOCKET_ENDPOINT = await getValue(NetworkType.RPC_WEBSOCKET_ENDPOINT, authKey) ?? null;
+      
+      // inital setting of userConnections and pumpfunSDKs based on user authKey
+      if (RPC_ENDPOINT && RPC_WEBSOCKET_ENDPOINT) configNetwork(RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT, authKey);
+      else configNetwork(PRIVATE_RPC_ENDPOINT, PRIVATE_RPC_WEBSOCKET_ENDPOINT, authKey);
+
       res.status(ResponseStatus.SUCCESS).send("Success");
     } else {
       res.status(ResponseStatus.UNAUTHORIZED).send("Unauthorized");
@@ -652,7 +668,6 @@ export const authKeyCheckWhileEntering = async (
 };
 
 // admin check while entering dashboard
-
 export const adminCheckWhileEnteringDashboard = async (
   req: Request,
   res: Response

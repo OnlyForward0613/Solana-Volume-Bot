@@ -95,7 +95,6 @@ export function getOrCreateKeypair(dir: string, keyName: string): Keypair {
 }
 
 export async function buildTx(
-  connection: Connection,
   tx: Transaction,
   payer: PublicKey,
   signers: Keypair[],
