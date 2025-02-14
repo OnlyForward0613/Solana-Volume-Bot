@@ -147,12 +147,17 @@ export const generateMintWallet = async (req: Request, res: Response) => {
     const authKey = req.headers.authorization as string;
     const tokenPath = path.join(__dirname, "../../upload/.keys/vanity.json");
     const tokenData = JSON.parse(fs.readFileSync(tokenPath, "utf8"));
-    console.log(`Generating ${tokenData} from ` + tokenPath)
+    // console.log(`Generating ${tokenData} from ` + tokenPath)
     const keyPairs = tokenData.map((item: {secretKey: string, publicKey: string}) => (
       Keypair.fromSecretKey(bs58.decode(item.secretKey))
     ));
 
+    console.log("generate mint address");
     const sdk = pumpFunSDKs[authKey];
+    console.log("authKey when generating mint address", authKey);
+    console.log("connection when generating mint address", pumpFunSDKs[authKey].connection);
+    console.log("program when generating mint address", pumpFunSDKs[authKey].program.programId);
+    
     while (keyPairs.length > 0) {
       const index = Math.floor(Math.random() * keyPairs.length);
       const selectedKeyPair = keyPairs[index];
@@ -301,7 +306,7 @@ export const setNetwork = async (req: Request, res: Response) => {
     if (JITO_FEE) {
       await setValue(
         NetworkType.JITO_FEE,
-        Math.floor(JITO_FEE * LAMPORTS_PER_SOL),
+        JITO_FEE,
         authKey
       );
       jitoFees[authKey] = Number(jitoFee) * LAMPORTS_PER_SOL;
@@ -333,7 +338,7 @@ export const getNetwork = async (req: Request, res: Response) => {
       JITO_FEE: (await getValue(NetworkType.JITO_FEE, authKey)) ?? 0,
     };
 
-    if (data.JITO_FEE) data.JITO_FEE = Number(data.JITO_FEE) / LAMPORTS_PER_SOL;
+    if (data.JITO_FEE) data.JITO_FEE = Number(data.JITO_FEE);
 
     res.status(ResponseStatus.SUCCESS).send(data);
   } catch (err) {
@@ -656,6 +661,9 @@ export const authKeyCheckWhileEntering = async (
       const RPC_ENDPOINT = await getValue(NetworkType.RPC_ENDPOINT, authKey) ?? null;
       const RPC_WEBSOCKET_ENDPOINT = await getValue(NetworkType.RPC_WEBSOCKET_ENDPOINT, authKey) ?? null;
       const jitoFee = await getValue(NetworkType.JITO_FEE, authKey) ?? null;
+      console.log("RPC_ENDPOINT", RPC_ENDPOINT);
+      console.log("RPC_WEBSOCKET_ENDPOINT", RPC_WEBSOCKET_ENDPOINT);
+      console.log("jitoFee", jitoFee);
       // inital setting of userConnections and pumpfunSDKs based on user authKey
       if (RPC_ENDPOINT && RPC_WEBSOCKET_ENDPOINT) {
         configNetwork(RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT, authKey);

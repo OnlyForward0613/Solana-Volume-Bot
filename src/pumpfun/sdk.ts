@@ -83,20 +83,20 @@ export class PumpFunSDK {
       
       let lutTx = new Transaction();
       lutTx.add(createLutIx as TransactionInstruction); // add creating address lookup table instruction
-      let tipIx = jitoTipIx(payer.publicKey, jitoFee);
-      lutTx.add(tipIx); // add jito fee instruction
-      
       let accounts = getAllAccountsForLUT(mint.publicKey, payer.publicKey, buyers);
-
+      
+      
       lutTx.instructions.forEach((ix) => {
         ix.keys.forEach((key) => {
-            accounts.push(key.pubkey);
+          accounts.push(key.pubkey);
         });
       });
-
+      
+      // console.log("allAccounts for LUT", accounts);
+      
       let accountSet: Set<PublicKey> = new Set(accounts); // remove duplicate accounts
       let chunkAccounts = chunk(Array.from(accountSet), extendLimt); // move Set to Array
-
+      
       chunkAccounts.map(accounts => {
         lutTx.add(extendLut( // add extend instruction
           lut as PublicKey,
@@ -104,6 +104,14 @@ export class PumpFunSDK {
           accounts
         ));
       });
+      
+      let tipIx = jitoTipIx(payer.publicKey, jitoFee);
+      lutTx.add(tipIx); // add jito fee instruction
+
+      console.log("fund", payer.publicKey.toBase58());
+      console.log("dev", buyers[0].publicKey.toBase58());
+      console.log("sniper", buyers[1].publicKey.toBase58());
+      console.log("jitoFee", jitoFee);
       
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
@@ -116,6 +124,8 @@ export class PumpFunSDK {
         commitment,
         finality
       );
+
+      // console.log("lutVersonedTx:", lutVersionedTx);
       
       if (!lutVersionedTx) throw Error("lut transation was empty");
       
@@ -148,13 +158,6 @@ export class PumpFunSDK {
         // lutAccount ? [lutAccount]: null
       );
 
-      // console.log("fund", payer.publicKey.toBase58());
-      // console.log("creator", creatorAccount.publicKey.toBase58());
-      // console.log("mint", mint.publicKey.toBase58());
-      // console.log("tokenInfo", tokenInfo);
-      // console.log("conneciton", this.connection);
-      // console.log(createVersionedTx);
-      // console.log(createVersionedTx?.message.compiledInstructions);
       if (!createVersionedTx) throw Error("create transation was empty");
 
       let bundleTxs: VersionedTransaction[] = [lutVersionedTx, createVersionedTx];
