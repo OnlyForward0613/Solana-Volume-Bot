@@ -32,7 +32,7 @@ export const jitoWithAxios = async (
 ) => {
   try {
     
-      console.log(`Starting Jito transaction execution... transaction count: ${transactions.length}`);
+    console.log(`Starting Jito transaction execution... transaction count: ${transactions.length}`);
    
     const jitoTxsignature = base58.encode(transactions[0].signatures[0]);
     const serializedTransactions: string[] = [];
@@ -57,13 +57,13 @@ export const jitoWithAxios = async (
     console.log(signatures);
 
     // Simulate bundle
-    // const simultationResult: any = await simulateTxBeforeSendBundle(connection, [...transactions]);
-    // if (!simultationResult) {
-    //   console.log("simulation error. plz try again");
-    //   return { confirmed: false };
-    // }
-    // console.log("simulation success");
-    // return { confirmed: true, content: "Bundle simulation is Ok" };
+    const simultationResult: any = await simulateTxBeforeSendBundle(connection, [...transactions]);
+    if (!simultationResult) {
+      console.log("simulation error. plz try again");
+      return { confirmed: false };
+    }
+    console.log("simulation success");
+    return { confirmed: true, content: "Bundle simulation is Ok" };
 
     const endpoints = [
       // 'https://mainnet.block-engine.jito.wtf/api/v1/bundles',

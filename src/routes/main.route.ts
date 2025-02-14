@@ -1,5 +1,12 @@
 import { Router } from "express";
-import { distributionSol, gatherFund, launchToken, sellByAmount, sellByPercentage, sellDumpAll } from "../controller/pumpfun.route";
+import { 
+  distributionSol, 
+  gatherFund, 
+  launchToken, 
+  sellByAmount, 
+  sellByPercentage, 
+  sellDumpAll 
+} from "../controller/pumpfun.route";
 import { 
   getWallets, 
   generateCommonWallets, 
