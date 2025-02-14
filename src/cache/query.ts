@@ -174,8 +174,8 @@ export async function getHash<T>(key: Key | DynamicKeyType) {
 // get counts of array stored in Json
 export async function getCommonWalletsCounts(authKey: string) {
   const id = (await getIdFromAuthKey(authKey)) as string;
-  return JSON.parse((await cache.get(`${id}:${WalletKey.COMMON}`)) as string)
-    .length;
+  let commonWallets = JSON.parse((await cache.get(`${id}:${WalletKey.COMMON}`)) as string)
+  return commonWallets?.length ?? 0
 }
 
 export async function setOrderedSet(
