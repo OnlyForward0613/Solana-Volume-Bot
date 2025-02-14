@@ -1,7 +1,7 @@
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
 import { LaunchTokenType, DistributionType, GatherType, sellType, SellDumpAllType } from "../types";
 import { buildTx, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
-import { JITO_FEE, lutProviders, sdk } from "../config";
+import { JITO_FEE, lutProviders, pumpFunSDKs} from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import base58 from "bs58";
 import { getJitoTipWallet, jitoWithAxios } from "../helper/jitoWithAxios";
@@ -26,16 +26,17 @@ export async function launchTokenService(
   }: LaunchTokenType, 
   tokenInfo: TokenMetadataType,
   mint: Keypair,
-  connection: Connection,
+  authKey: string,
   jitoFee: number = JITO_FEE,
+
 ) {
   try {
+
+    let sdk = pumpFunSDKs[authKey];
     let boundingCurveAccount = await sdk.getBondingCurveAccount(mint.publicKey);
     console.log(boundingCurveAccount);
     
     // configure lookup table
-    lutProviders["first"] = new LookupTableProvider();
-    await lutProviders["first"].getLookupTable(new PublicKey("3Q3epsDP64Z4YUr9u7UYBENzJLafwAnxRq41RmMf8X3R"));
     if (!boundingCurveAccount) {
 
       let globalAccount = await sdk.getGlobalAccount();
@@ -60,6 +61,7 @@ export async function launchTokenService(
         tokenInfo,
         [devAmount, sniperAmount],
         jitoFee,
+        authKey,
         SLIPPAGE_BASIS_POINTS,
       );
 
@@ -79,7 +81,7 @@ export async function launchTokenService(
         commonAmounts,
         mint.publicKey, // mint
         jitoFee,
-        connection,
+        authKey,
         globalAccount,
         SLIPPAGE_BASIS_POINTS,
       );
@@ -91,29 +93,28 @@ export async function launchTokenService(
 
     } else {
 
-      let globalAccount = await sdk.getGlobalAccount();
-      if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
+      // let globalAccount = await sdk.getGlobalAccount();
+      // if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
 
-      console.log("only second bundle");
+      // console.log("only second bundle");
 
-      const secondResult = await sdk.firstBundleAfterCreation(
-        devAccount,
-        sniperAccount,
-        commonAccounts,
-        commonAmounts,
-        mint.publicKey, // mint
-        jitoFee,
-        connection,
-        globalAccount,
-        SLIPPAGE_BASIS_POINTS,
-      );
-      if (secondResult.confirmed) {
-        console.log(`https://solscan.io/tx/${secondResult.content}`)
-        console.log(secondResult.content);
-      } 
-      return secondResult;
+      // const secondResult = await sdk.firstBundleAfterCreation(
+      //   devAccount,
+      //   sniperAccount,
+      //   commonAccounts,
+      //   commonAmounts,
+      //   mint.publicKey, // mint
+      //   jitoFee,
+      //   connection,
+      //   globalAccount,
+      //   SLIPPAGE_BASIS_POINTS,
+      // );
+      // if (secondResult.confirmed) {
+      //   console.log(`https://solscan.io/tx/${secondResult.content}`)
+      //   console.log(secondResult.content);
+      // } 
+      // return secondResult;
       console.log("The token already exists:", `https://pump.fun/${mint.publicKey.toBase58()}`);
-      printSPLBalance(connection, mint.publicKey, devAccount.publicKey);
       throw Error("the mint token already exists on Pumpfun");
     }
   } catch (err) {
@@ -169,7 +170,6 @@ export const distributionService = async (
     const bundleTxs = await Promise.all(chunkIxs.map(async (ixs) => {
       const tx = new Transaction().add(...ixs as TransactionInstruction[]);
       const versionedTx = await buildTx(
-        connection,
         tx,
         fundAccount.publicKey,
         [fundAccount],
@@ -193,7 +193,7 @@ export const distributionService = async (
     let count = 0;
 
     while (true) { // We will try 3 times until bundle is success
-      result = await jitoWithAxios(bundleTxs, latestBlockhash);
+      result = await jitoWithAxios(bundleTxs, latestBlockhash, connection);
       if (result.confirmed) break;
       count++;
       if (count > 3) throw Error("Bundle failed");
@@ -259,7 +259,6 @@ export const gatherService = async (
       const tx = new Transaction().add(...ixs as TransactionInstruction[]);
       console.log(chunkAccounts[index]);
       const versionedTx = await buildTx(
-        connection,
         tx,
         fundAccount.publicKey,
         [fundAccount, ...chunkAccounts[index]],
@@ -282,7 +281,7 @@ export const gatherService = async (
     let count = 0;
 
     while (true) {
-      result = await jitoWithAxios(bundleTxs, latestBlockhash);
+      result = await jitoWithAxios(bundleTxs, latestBlockhash, connection);
       if (result.confirmed) break;
       count++;
       if (count > 3) throw Error("Bundle failed");
@@ -304,10 +303,11 @@ export const sellService = async (
     mintPubKey,
     tokenAmount
   }: sellType,
-  connection: Connection,
+  authKey: string,
   jitoFee: number = JITO_FEE,
 ) => {
   try {
+    let sdk = pumpFunSDKs[authKey];
     let globalAccount = await sdk.getGlobalAccount();
     if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
     
@@ -317,7 +317,6 @@ export const sellService = async (
       tokenAmount, // sell token amount
       mintPubKey,
       jitoFee,
-      connection,
       globalAccount,
       SLIPPAGE_BASIS_POINTS
     );
@@ -343,14 +342,13 @@ export const sellDumpAllService = async (
     sellTokenAmounts,
     mintPubKey,
   }: SellDumpAllType,
-  connection: Connection,
+  authKey: string,
   jitoFee: number = JITO_FEE,
 ) => {
   try {
+    let sdk = pumpFunSDKs[authKey];
     let globalAccount = await sdk.getGlobalAccount();
     if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
-    
-    lutProviders["first"] = new LookupTableProvider();
     
     const result =  await sdk.sellDumpAll(
       payer,
@@ -358,7 +356,7 @@ export const sellDumpAllService = async (
       sellTokenAmounts,
       mintPubKey,
       jitoFee,
-      connection,
+      authKey,
       globalAccount,
       SLIPPAGE_BASIS_POINTS,
     );

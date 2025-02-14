@@ -1,7 +1,6 @@
 import { Program, Provider } from "@coral-xyz/anchor";
 import { PumpFun, IDL } from "./IDL";
-import { 
-  AddressLookupTableAccount,
+import {
   Commitment, 
   Connection, 
   Finality, 
@@ -23,7 +22,6 @@ import {
   getAllAccountsForLUT, 
   getSPLBalance,
   initializeLUT,
-  sendTx, 
 } from "../helper/util";
 // import { Agent, setGlobalDispatcher } from "undici";
 import { 
@@ -71,7 +69,8 @@ export class PumpFunSDK {
     buyers: Keypair[], // [devAccount, buyAccount]
     tokenInfo: TokenMetadataType,
     buyAmountsSol: bigint[],
-    jitoFee: number, 
+    jitoFee: number,
+    authKey: string,
     slippageBasisPoints: bigint = 300n,
     priorityFees?: PriorityFee, // set unitLimit and unitPrice
     commitment: Commitment = DEFAULT_COMMITMENT,
@@ -109,7 +108,6 @@ export class PumpFunSDK {
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
       let lutVersionedTx = await buildTx(
-        this.connection,
         lutTx,
         payer.publicKey,
         [payer],
@@ -140,7 +138,6 @@ export class PumpFunSDK {
       // const lutAccount = (await this.connection.getAddressLookupTable(new PublicKey("F3JrzXceYGjADdrd6RY7gS2gkiJxUzv3FQgW2KMQHLvP"))).value;
       
       let createVersionedTx = await buildTx(
-        this.connection,
         createTx,
         creatorAccount.publicKey,
         [creatorAccount, mint],
@@ -176,7 +173,6 @@ export class PumpFunSDK {
           );
 
           const buyVersionedTx = await buildTx(
-            this.connection,
             buyTx,
             buyers[i].publicKey,
             [buyers[i]],
@@ -193,9 +189,9 @@ export class PumpFunSDK {
       let result
       let count = 0;
       while (true) {
-        result = await jitoWithAxios(bundleTxs, latestBlockhash);
+        result = await jitoWithAxios(bundleTxs, latestBlockhash, this.connection);
         if (result.confirmed) {
-          await lutProviders["first"].getLookupTable(lut as PublicKey);
+          lutProviders[authKey] = lut as PublicKey;
           break;
         }
         count++;
@@ -215,7 +211,7 @@ export class PumpFunSDK {
     commonSolAmounts: bigint[],
     mintPubKey: PublicKey, // mint
     jitoFee: number,
-    connection: Connection,
+    authKey: string,
     globalAccount: GlobalAccount,
     SLIPPAGE_BASIS_POINTS: bigint,
     priorityFees?: PriorityFee,
@@ -234,7 +230,7 @@ export class PumpFunSDK {
       let sniperSellTx = new Transaction();
       const bundleTxs: VersionedTransaction[] = [];
 
-      let tokenAmount = await getSPLBalance(connection, mintPubKey, sniperAccount.publicKey);
+      let tokenAmount = await getSPLBalance(this.connection, mintPubKey, sniperAccount.publicKey);
       if (!tokenAmount) throw Error("Errors when getting token balance");
       let sniperTokenAmount = BigInt(Math.floor(tokenAmount * DEFAULT_POW));
 
@@ -260,7 +256,6 @@ export class PumpFunSDK {
       sniperSellTx.add(tipIx); // add jito fee instruction
 
       let sniperSellVersionedTx = await buildTx(
-        connection,
         sniperSellTx,
         sniperAccount.publicKey,
         [sniperAccount],
@@ -317,13 +312,13 @@ export class PumpFunSDK {
       // }));
 
       // let lutAccounts = lutProviders["first"].computeIdealLookupTablesForAddresses(commonPKs); // getting lookup table accounts
-      let lutAccount = await lutProviders["first"].getLookupTable(new PublicKey("3Q3epsDP64Z4YUr9u7UYBENzJLafwAnxRq41RmMf8X3R"))
+      let lutAccount = null;
+      if (lutProviders[authKey]) lutAccount = (await this.connection.getAddressLookupTable(lutProviders[authKey])).value
       console.log("lutAccounts", lutAccount);
 
       for(let i = 0; i < chunkCommonBuyIxs.length; i++) {
         let newTx = (new Transaction).add(...chunkCommonBuyIxs[i]);
         let newVersionedTx = await buildTx(
-          connection,
           newTx,
           payer.publicKey,
           [payer, ...chunkCommonAccounts[i]],
@@ -343,7 +338,7 @@ export class PumpFunSDK {
       let count = 0;
 
       while (true) {
-        result = await jitoWithAxios(bundleTxs, latestBlockhash);
+        result = await jitoWithAxios(bundleTxs, latestBlockhash, this.connection);
         if (result.confirmed) break;
         count++;
         if (count > 0) throw Error("Bundle failed");
@@ -363,7 +358,6 @@ export class PumpFunSDK {
     sellTokenAmount: bigint,
     mintPubKey: PublicKey,
     jitoFee: number,
-    connection: Connection,
     globalAccount: GlobalAccount,
     SLIPPAGE_BASIS_POINTS: bigint,
     priorityFees?: PriorityFee,
@@ -400,7 +394,6 @@ export class PumpFunSDK {
       initialTx.add(tipIx); // add jito fee instruction
 
       let initialVersionedTx = await buildTx(
-        connection,
         initialTx,
         sellAccount.publicKey,
         [sellAccount],
@@ -413,7 +406,7 @@ export class PumpFunSDK {
       let result
       let count = 0;
       while (true) {
-        result = await jitoWithAxios(bundleTxs, latestBlockhash);
+        result = await jitoWithAxios(bundleTxs, latestBlockhash, this.connection);
         if (result.confirmed) break;
         count++;
         if (count > 0) throw Error("SendBundle count exceeded 3 times");
@@ -432,7 +425,7 @@ export class PumpFunSDK {
     sellTokenAmounts: bigint[],
     mintPubKey: PublicKey,
     jitoFee: number,
-    connection: Connection,
+    authKey: string,
     globalAccount: GlobalAccount,
     SLIPPAGE_BASIS_POINTS: bigint,
     priorityFees?: PriorityFee,
@@ -482,13 +475,14 @@ export class PumpFunSDK {
       let chunkCommonBuyIxs = chunk(sellIxs, ixChunkLimit);
       let chunkCommonAccounts = chunk(sellAccounts, ixChunkLimit);
 
-      let lutAccount = await lutProviders["first"].getLookupTable(new PublicKey("3Q3epsDP64Z4YUr9u7UYBENzJLafwAnxRq41RmMf8X3R"))
+      let lutAccount = null;      
+      if (lutProviders[authKey]) lutAccount = (await this.connection.getAddressLookupTable(lutProviders[authKey])).value
       console.log("lutAccounts", lutAccount);
+
       await Promise.all(chunkCommonBuyIxs.map(async (buyIxs, index) => {
         let sellTx = (new Transaction).add(...buyIxs);
         if (index == chunkCommonBuyIxs.length - 1) sellTx.add(tipIx); // add jito fee instruction to first transaction of jito bundle
         let newVersionedTx = await buildTx(
-          connection,
           sellTx,
           payer.publicKey,
           [payer, ...chunkCommonAccounts[index]],
@@ -505,7 +499,7 @@ export class PumpFunSDK {
       let result
       let count = 0;
       while (true) {
-        result = await jitoWithAxios(bundleTxs, latestBlockhash);
+        result = await jitoWithAxios(bundleTxs, latestBlockhash, this.connection);
         if (result.confirmed) break;
         count++;
         if (count > 0) throw Error("SendBundle count exceeded 3 times");
