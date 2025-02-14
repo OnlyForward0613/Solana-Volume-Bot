@@ -10,7 +10,7 @@ export const RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=a8769523-bf
 export const RPC_WEBSOCKET_ENDPOINT = "wss://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
 export const PRIVATE_RPC_ENDPOINT = "https://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
 
-export const COMMITMENT_LEVEL = 'processed' as Commitment;
+export const COMMITMENT_LEVEL = 'finalized' as Commitment;
 export let connection = new Connection(RPC_ENDPOINT, {
   wsEndpoint: RPC_WEBSOCKET_ENDPOINT
 });
@@ -24,7 +24,7 @@ export const private_connection = new Connection(PRIVATE_RPC_ENDPOINT, {
 
 export const getProvider = (connection: Connection) => {
   let wallet = new NodeWallet(new Keypair());
-  return new AnchorProvider(connection, wallet, { commitment: COMMITMENT_LEVEL })
+  return new AnchorProvider(connection, wallet, { commitment: "confirmed" })
 }
 export let anchorProvider = getProvider(connection);
 
