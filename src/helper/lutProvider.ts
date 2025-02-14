@@ -1,10 +1,10 @@
 import {
   AccountInfo,
   AddressLookupTableAccount,
-  AddressLookupTableProgram,
   PublicKey,
-} from '@solana/web3.js'; 
-import { connection } from '../config';
+} from '@solana/web3.js';
+
+import { private_connection } from '../config';
 /**
  * this class solves 2 problems:
  * 1. cache and geyser subscribe to lookup tables for fast retreival
@@ -64,7 +64,7 @@ export class LookupTableProvider {
       return this.lookupTables.get(lutAddressStr);
     }
 
-    const lut = await connection.getAddressLookupTable(lutAddress);
+    const lut = await private_connection.getAddressLookupTable(lutAddress);
     if (lut.value === null) {
       return null;
     }
