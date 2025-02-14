@@ -1,7 +1,7 @@
 import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
 import { LaunchTokenType, DistributionType, GatherType, sellType, SellDumpAllType } from "../types";
 import { buildTx, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
-import { JITO_FEE, lutProviders, pumpFunSDKs} from "../config";
+import { DEFAULT_JITO_FEE, lutProviders, pumpFunSDKs} from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import base58 from "bs58";
 import { getJitoTipWallet, jitoWithAxios } from "../helper/jitoWithAxios";
@@ -27,7 +27,7 @@ export async function launchTokenService(
   tokenInfo: TokenMetadataType,
   mint: Keypair,
   authKey: string,
-  jitoFee: number = JITO_FEE,
+  jitoFee: number = DEFAULT_JITO_FEE,
 
 ) {
   try {
@@ -131,7 +131,7 @@ export const distributionService = async (
     solAmounts,
   }: DistributionType,
   connection: Connection,
-  jitoFee: number = JITO_FEE,
+  jitoFee: number = DEFAULT_JITO_FEE,
 ) => {
   try {
     const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletSK));
@@ -214,7 +214,7 @@ export const gatherService = async (
     walletSKs,
   }: GatherType,
   connection: Connection,
-  jitoFee: number = JITO_FEE
+  jitoFee: number = DEFAULT_JITO_FEE
 ) => {
   try {
     const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletSK));
@@ -304,7 +304,7 @@ export const sellService = async (
     tokenAmount
   }: sellType,
   authKey: string,
-  jitoFee: number = JITO_FEE,
+  jitoFee: number = DEFAULT_JITO_FEE,
 ) => {
   try {
     let sdk = pumpFunSDKs[authKey];
@@ -343,7 +343,7 @@ export const sellDumpAllService = async (
     mintPubKey,
   }: SellDumpAllType,
   authKey: string,
-  jitoFee: number = JITO_FEE,
+  jitoFee: number = DEFAULT_JITO_FEE,
 ) => {
   try {
     let sdk = pumpFunSDKs[authKey];

@@ -1,7 +1,10 @@
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import { 
+  Connection, 
+  PublicKey, SystemProgram, 
+  VersionedTransaction 
+} from "@solana/web3.js";
 import base58 from "bs58";
 import axios, { AxiosError } from "axios";
-import { COMMITMENT_LEVEL, JITO_FEE } from "../config";
 import { simulateTxBeforeSendBundle } from "./util";
 import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
 
