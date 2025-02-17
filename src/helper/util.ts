@@ -335,7 +335,6 @@ export const createNewPrivateKeyBasedonAssets = (allWallets: string[]) => {
 
 // check if given string is valid solana private key
 export const isValidSolanaPrivateKey = (keys: string[]) => {
-  console.log(keys);
   try {
     keys.map(key => {
       Keypair.fromSecretKey(bs58.decode(key));

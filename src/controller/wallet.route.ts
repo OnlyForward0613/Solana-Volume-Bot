@@ -50,7 +50,6 @@ export const generateCommonWallets = async (req: Request, res: Response) => {
     const authKey = req.headers.authorization as string;
     console.log(nums, authKey);
     const allWallets = await getAllWallets(authKey) ?? [];
-    console.log("allWallets", allWallets);
     const existNums = (await getCommonWalletsCounts(authKey)) ?? 0;
     console.log(`existNums: ${existNums}`);
 
@@ -155,8 +154,6 @@ export const generateMintWallet = async (req: Request, res: Response) => {
     console.log("generate mint address");
     const sdk = pumpFunSDKs[authKey];
     console.log("authKey when generating mint address", authKey);
-    console.log("connection when generating mint address", pumpFunSDKs[authKey].connection);
-    console.log("program when generating mint address", pumpFunSDKs[authKey].program.programId);
     
     while (keyPairs.length > 0) {
       const index = Math.floor(Math.random() * keyPairs.length);
@@ -657,27 +654,6 @@ export const authKeyCheckWhileEntering = async (
     const { authKey } = req.body;
     const result = await authKeyCheck(authKey);
     if (result) {
-      
-    //   const RPC_ENDPOINT = await getValue(NetworkType.RPC_ENDPOINT, authKey) ?? null;
-    //   const RPC_WEBSOCKET_ENDPOINT = await getValue(NetworkType.RPC_WEBSOCKET_ENDPOINT, authKey) ?? null;
-    //   const jitoFee = await getValue(NetworkType.JITO_FEE, authKey) ?? null;
-    //   console.log("RPC_ENDPOINT", RPC_ENDPOINT);
-    //   console.log("RPC_WEBSOCKET_ENDPOINT", RPC_WEBSOCKET_ENDPOINT);
-    //   console.log("jitoFee", jitoFee);
-    //   // inital setting of userConnections and pumpfunSDKs based on user authKey
-    //   if (RPC_ENDPOINT && RPC_WEBSOCKET_ENDPOINT) {
-    //     configNetwork(RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT, authKey);
-    //   }
-    //   else {
-    //     configNetwork(PRIVATE_RPC_ENDPOINT, PRIVATE_RPC_WEBSOCKET_ENDPOINT, authKey);
-    //   }
-
-      // if (jitoFee) {
-      //   jitoFees[authKey] = Number(jitoFee) * LAMPORTS_PER_SOL;
-      // } else {
-      //   jitoFees[authKey] = DEFAULT_JITO_FEE;
-      // }
-
       res.status(ResponseStatus.SUCCESS).send("Success");
     } else {
       res.status(ResponseStatus.UNAUTHORIZED).send("Unauthorized");

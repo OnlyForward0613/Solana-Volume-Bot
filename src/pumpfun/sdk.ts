@@ -23,7 +23,6 @@ import {
   getSPLBalance,
   initializeLUT,
 } from "../helper/util";
-// import { Agent, setGlobalDispatcher } from "undici";
 import { 
   createAssociatedTokenAccountInstruction, 
   getAccount, 
@@ -91,9 +90,7 @@ export class PumpFunSDK {
           accounts.push(key.pubkey);
         });
       });
-      
-      // console.log("allAccounts for LUT", accounts);
-      
+
       let accountSet: Set<PublicKey> = new Set(accounts); // remove duplicate accounts
       let chunkAccounts = chunk(Array.from(accountSet), extendLimt); // move Set to Array
       
@@ -108,11 +105,6 @@ export class PumpFunSDK {
       let tipIx = jitoTipIx(payer.publicKey, jitoFee);
       lutTx.add(tipIx); // add jito fee instruction
 
-      console.log("fund", payer.publicKey.toBase58());
-      console.log("dev", buyers[0].publicKey.toBase58());
-      console.log("sniper", buyers[1].publicKey.toBase58());
-      console.log("jitoFee", jitoFee);
-      
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
       let lutVersionedTx = await buildTx(
@@ -124,8 +116,6 @@ export class PumpFunSDK {
         commitment,
         finality
       );
-
-      // console.log("lutVersonedTx:", lutVersionedTx);
       
       if (!lutVersionedTx) throw Error("lut transation was empty");
       
@@ -139,13 +129,6 @@ export class PumpFunSDK {
         mint
       );
       createTx.add(createIx);
-       // add create token instruction
-      // createTx.instructions.forEach((ix) => {
-      //   ix.keys.forEach((key) => {
-      //     console.log("createKey", key.pubkey.toBase58());
-      //   });
-      // });
-      // const lutAccount = (await this.connection.getAddressLookupTable(new PublicKey("F3JrzXceYGjADdrd6RY7gS2gkiJxUzv3FQgW2KMQHLvP"))).value;
       
       let createVersionedTx = await buildTx(
         createTx,
@@ -162,7 +145,6 @@ export class PumpFunSDK {
 
       let bundleTxs: VersionedTransaction[] = [lutVersionedTx, createVersionedTx];
       let buySimulateAmountsSol = this.simulateBuys(buyAmountsSol);
-      console.log(buySimulateAmountsSol);
 
       if (buyAmountsSol.length > 0) {
         for (let i = 0; i < buyers.length; i++) {
@@ -265,7 +247,6 @@ export class PumpFunSDK {
       if (!sniperSellVersionedTx) throw Error("Errors when sell tokens in sniper wallet");
       bundleTxs.push(sniperSellVersionedTx);
 
-
       let simulateCommonBuyTokenAmounts = bondingCurveAccount.simulateBuy(commonSolAmounts);
 
       let commonBuyIxs: Transaction[] = [];
@@ -283,12 +264,9 @@ export class PumpFunSDK {
 
       let chunkCommonBuyIxs = chunk(commonBuyIxs, ixChunkLimit);
       let chunkCommonAccounts = chunk(commonAccounts, ixChunkLimit);
-      let commonPKs = commonAccounts.map(account => account.publicKey);
-      console.log(commonPKs)
-     
+    
       let lutAccount = null;
       if (lutProviders[authKey]) lutAccount = (await this.connection.getAddressLookupTable(lutProviders[authKey])).value
-      console.log("lutAccounts", lutAccount);
 
       for(let i = 0; i < chunkCommonBuyIxs.length; i++) {
         let newTx = (new Transaction).add(...chunkCommonBuyIxs[i]);
@@ -413,23 +391,9 @@ export class PumpFunSDK {
 
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
-      // let initialTx = new Transaction();
       const bundleTxs: VersionedTransaction[] = [];
 
       let tipIx = jitoTipIx(payer.publicKey, jitoFee); // add jito fee instruction
-      // initialTx.add(tipIx);
-      
-      // let initialVersionedTx = await buildTx(
-      //   connection,
-      //   initialTx,
-      //   payer.publicKey,
-      //   [payer],
-      //   latestBlockhash,      
-      // );
-      
-      
-      // if (!initialVersionedTx) throw Error("Errors when sell tokens in sniper wallet");
-      // bundleTxs.push(initialVersionedTx);
       
       let simulateSniperSellSolAmounts = bondingCurveAccount.simulateSell(sellTokenAmounts, globalAccount.feeBasisPoints);
      
@@ -539,40 +503,6 @@ export class PumpFunSDK {
 
     return transaction;
   }
-
-  // async createTokenMetadata(create: CreateTokenMetadata) {
-  //   let formData = new FormData();
-  //     formData.append("file", create.file),
-  //     formData.append("name", create.name),
-  //     formData.append("symbol", create.symbol),
-  //     formData.append("description", create.description),
-  //     formData.append("twitter", create.twitter || ""),
-  //     formData.append("telegram", create.telegram || ""),
-  //     formData.append("website", create.website || ""),
-  //     formData.append("showName", "true");
-    
-  //   setGlobalDispatcher(new Agent({ connect: { timeout: 60_000 } }))
-  //   let request = await fetch("https://pump.fun/api/ipfs", {
-  //     method: "POST",
-  //     headers: {
-  //       "Host": "www.pump.fun",
-  //       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
-  //       "Accept": "*/*",
-  //       "Accept-Language": "en-US,en;q=0.5",
-  //       "Accept-Encoding": "gzip, deflate, br, zstd",
-  //       "Referer": "https://www.pump.fun/create",
-  //       "Origin": "https://www.pump.fun",
-  //       "Connection": "keep-alive",
-  //       "Sec-Fetch-Dest": "empty",
-  //       "Sec-Fetch-Mode": "cors",
-  //       "Sec-Fetch-Site": "same-origin",
-  //       "Priority": "u=1",
-  //       "TE": "trailers"
-  //     },
-  //     body: formData,
-  //   });
-  //   return request.json();
-  // }
 
   // create token instructions
   async getCreateInstructions(
@@ -742,8 +672,6 @@ export class PumpFunSDK {
       [Buffer.from(GLOBAL_ACCOUNT_SEED)],
       new PublicKey(PROGRAM_ID)
     );
-
-    console.log(`global account PDA: ${globalAccountPDA.toBase58()}`);
 
     const tokenAccount = await this.connection.getAccountInfo(
       globalAccountPDA,

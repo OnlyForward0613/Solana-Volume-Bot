@@ -1,7 +1,7 @@
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
 import { LaunchTokenType, DistributionType, GatherType, sellType, SellDumpAllType } from "../types";
-import { buildTx, printSOLBalance, printSPLBalance, simulateTxBeforeSendBundle, sleep } from "../helper/util";
-import { DEFAULT_JITO_FEE, lutProviders, pumpFunSDKs} from "../config";
+import { buildTx, simulateTxBeforeSendBundle, sleep } from "../helper/util";
+import { DEFAULT_JITO_FEE, pumpFunSDKs} from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import base58 from "bs58";
 import { getJitoTipWallet, jitoWithAxios } from "../helper/jitoWithAxios";
@@ -9,7 +9,6 @@ import chunk from 'lodash/chunk';
 import { Transaction } from "@solana/web3.js";
 import { TransactionInstruction } from "@solana/web3.js";
 import { Connection } from "@solana/web3.js";
-import { LookupTableProvider } from "../helper/lutProvider";
 
 const SLIPPAGE_BASIS_POINTS = 500n;
 
@@ -28,7 +27,6 @@ export async function launchTokenService(
   mint: Keypair,
   authKey: string,
   jitoFee: number = DEFAULT_JITO_FEE,
-
 ) {
   try {
 
@@ -92,28 +90,6 @@ export async function launchTokenService(
       return secondResult;
 
     } else {
-
-      // let globalAccount = await sdk.getGlobalAccount();
-      // if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
-
-      // console.log("only second bundle");
-
-      // const secondResult = await sdk.firstBundleAfterCreation(
-      //   devAccount,
-      //   sniperAccount,
-      //   commonAccounts,
-      //   commonAmounts,
-      //   mint.publicKey, // mint
-      //   jitoFee,
-      //   connection,
-      //   globalAccount,
-      //   SLIPPAGE_BASIS_POINTS,
-      // );
-      // if (secondResult.confirmed) {
-      //   console.log(`https://solscan.io/tx/${secondResult.content}`)
-      //   console.log(secondResult.content);
-      // } 
-      // return secondResult;
       console.log("The token already exists:", `https://pump.fun/${mint.publicKey.toBase58()}`);
       throw Error("the mint token already exists on Pumpfun");
     }
@@ -136,8 +112,6 @@ export const distributionService = async (
   try {
     const fundAccount = Keypair.fromSecretKey(base58.decode(fundWalletSK));
     const walletAccounts = walletSKs.map(privateKey => Keypair.fromSecretKey(base58.decode(privateKey)));
-    console.log(walletSKs);
-    console.log(`jito fee: ${jitoFee}`);
 
     let ixs: TransactionInstruction[] = [];
     await Promise.all(walletAccounts.map((account, index) => {
@@ -163,7 +137,6 @@ export const distributionService = async (
 
     // we will include several tranfer instructions in one transaction, at least 5 insturctions
     const chunkIxs = chunk(ixs, 5);
-    console.log(chunkIxs);
 
     const latestBlockhash = await connection.getLatestBlockhash();
 
@@ -184,9 +157,9 @@ export const distributionService = async (
       console.log(`txsize${index}: `, bundle.serialize().length);
     });
 
-    const simulateResult = await simulateTxBeforeSendBundle(connection, bundleTxs);
-    console.log(simulateResult);
-    if (!simulateResult) throw Error("Simulation errors when distributiong fund  to wallets");
+    // const simulateResult = await simulateTxBeforeSendBundle(connection, bundleTxs);
+    // console.log(simulateResult);
+    // if (!simulateResult) throw Error("Simulation errors when distributiong fund  to wallets");
     // return { confirmed: simulateResult, content: "Distribution simulation is OK" };
 
     let result;
@@ -257,7 +230,6 @@ export const gatherService = async (
 
     const bundleTxs = await Promise.all(chunkIxs.map(async (ixs, index) => {
       const tx = new Transaction().add(...ixs as TransactionInstruction[]);
-      console.log(chunkAccounts[index]);
       const versionedTx = await buildTx(
         tx,
         fundAccount.publicKey,
@@ -272,9 +244,9 @@ export const gatherService = async (
       console.log(`txsize${index}: `, bundle.serialize().length);
     });
 
-    const simulateResult = await simulateTxBeforeSendBundle(connection, bundleTxs);
-    console.log(simulateResult);
-    if (!simulateResult) throw Error("Simulation errors when distributiong fund  to wallets");
+    // const simulateResult = await simulateTxBeforeSendBundle(connection, bundleTxs);
+    // console.log(simulateResult);
+    // if (!simulateResult) throw Error("Simulation errors when distributiong fund  to wallets");
     // return { confirmed: simulateResult, content: "GatherFund simulation is OK" };
 
     let result;
