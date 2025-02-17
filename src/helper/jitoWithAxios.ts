@@ -1,8 +1,10 @@
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import { 
+  Connection, 
+  PublicKey, SystemProgram, 
+  VersionedTransaction 
+} from "@solana/web3.js";
 import base58 from "bs58";
 import axios, { AxiosError } from "axios";
-import { COMMITMENT_LEVEL, JITO_FEE, RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT } from "../config";
-import { connection } from "../config";
 import { simulateTxBeforeSendBundle } from "./util";
 import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
 
@@ -28,11 +30,12 @@ export const getJitoTipWallet = () => {
 
 export const jitoWithAxios = async (
   transactions: VersionedTransaction[], 
-  latestBlockhash: BlockhashWithExpiryBlockHeight
+  latestBlockhash: BlockhashWithExpiryBlockHeight,
+  connection: Connection
 ) => {
   try {
     
-      console.log(`Starting Jito transaction execution... transaction count: ${transactions.length}`);
+    console.log(`Starting Jito transaction execution... transaction count: ${transactions.length}`);
    
     const jitoTxsignature = base58.encode(transactions[0].signatures[0]);
     const serializedTransactions: string[] = [];
@@ -57,20 +60,20 @@ export const jitoWithAxios = async (
     console.log(signatures);
 
     // Simulate bundle
-    const simultationResult: any = await simulateTxBeforeSendBundle(connection, [...transactions]);
-    if (!simultationResult) {
-      console.log("simulation error. plz try again");
-      return { confirmed: false };
-    }
-    console.log("simulation success");
-    return { confirmed: true, content: "Bundle simulation is Ok" };
+    // const simultationResult: any = await simulateTxBeforeSendBundle(connection, [...transactions]);
+    // if (!simultationResult) {
+    //   console.log("simulation error. plz try again");
+    //   return { confirmed: false };
+    // }
+    // console.log("simulation success");
+    // return { confirmed: true, content: "Bundle simulation is Ok" };
 
     const endpoints = [
-      'https://mainnet.block-engine.jito.wtf/api/v1/bundles',
+      // 'https://mainnet.block-engine.jito.wtf/api/v1/bundles',
       // 'https://amsterdam.mainnet.block-engine.jito.wtf/api/v1/bundles',
       // 'https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles',
       // 'https://ny.mainnet.block-engine.jito.wtf/api/v1/bundles',
-      // 'https://tokyo.mainnet.block-engine.jito.wtf/api/v1/bundles',
+      'https://tokyo.mainnet.block-engine.jito.wtf/api/v1/bundles',
     ];
 
     const requests = endpoints.map((url) =>
@@ -83,9 +86,11 @@ export const jitoWithAxios = async (
     );
 
     console.log('Sending transactions to endpoints...');
-
+    
     const results = await Promise.all(requests.map((p) => p.catch((e) => e)));
     
+    // console.log("Jito requests", results);
+
     const successfulResults = results.filter((result) => !(result instanceof Error));
 
     if (successfulResults.length > 0) {
@@ -97,7 +102,7 @@ export const jitoWithAxios = async (
           lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
           blockhash: latestBlockhash.blockhash,
         },
-        "processed",
+        "confirmed",
       );
 
       console.log(confirmation);

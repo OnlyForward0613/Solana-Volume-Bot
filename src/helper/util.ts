@@ -16,7 +16,7 @@ import {
   AddressLookupTableProgram,
   AddressLookupTableAccount,
 } from "@solana/web3.js";
-import { PriorityFee, TransactionResult } from "../pumpfun/types";
+import { PriorityFee } from "../pumpfun/types";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import fs from "fs";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -24,7 +24,7 @@ import base58 from "bs58";
 import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
 import { BONDING_CURVE_SEED, FEE_RECIPICEMT, GLOBAL_ACCOUNT, METADATA_SEED, MINT_AUTHORITY, MPL_TOKEN_METADATA_PROGRAM_ID, PROGRAM_ID } from "../pumpfun/sdk";
 
-export const DEFAULT_COMMITMENT: Commitment = "processed";
+export const DEFAULT_COMMITMENT: Commitment = "confirmed";
 export const DEFAULT_FINALITY: Finality = "finalized";
 
 export async function printSOLBalance(
@@ -95,14 +95,14 @@ export function getOrCreateKeypair(dir: string, keyName: string): Keypair {
 }
 
 export async function buildTx(
-  connection: Connection,
   tx: Transaction,
   payer: PublicKey,
   signers: Keypair[],
   latestBlockhash: BlockhashWithExpiryBlockHeight,
   priorityFees?: PriorityFee,
   commitment: Commitment = DEFAULT_COMMITMENT,
-  finality: Finality = DEFAULT_FINALITY
+  finality: Finality = DEFAULT_FINALITY,
+  lutAccounts: AddressLookupTableAccount[] | null = null
 ): Promise<VersionedTransaction | null> {
   try {
     let newTx = new Transaction();
@@ -119,7 +119,13 @@ export async function buildTx(
       newTx.add(addPriorityFee);
     }
     newTx.add(tx);
-    let versionedTx = await buildVersionedTx(connection, payer, newTx, latestBlockhash, commitment);
+    let versionedTx = await buildVersionedTx(
+      payer, 
+      newTx, 
+      latestBlockhash, 
+      commitment,
+      lutAccounts
+    );
     versionedTx.sign(signers);
     return versionedTx;
   } catch (err) {
@@ -129,21 +135,19 @@ export async function buildTx(
 }
 
 export const buildVersionedTx = async (
-  connection: Connection,
   payer: PublicKey,
   tx: Transaction,
   latestBlockhash: BlockhashWithExpiryBlockHeight,
   commitment: Commitment = DEFAULT_COMMITMENT,
-  lutAccounts: AddressLookupTableAccount[] | undefined = undefined,
+  lutAccounts: AddressLookupTableAccount[] | null = null
 ): Promise<VersionedTransaction> => {
-
-  const blockhash = latestBlockhash.blockhash;
+  const blockHash = latestBlockhash.blockhash;
 
   let messageV0 = new TransactionMessage({
     payerKey: payer,
-    recentBlockhash: blockhash,
+    recentBlockhash: blockHash,
     instructions: tx.instructions,
-  }).compileToV0Message(lutAccounts);
+  }).compileToV0Message(lutAccounts ?? undefined);
 
   return new VersionedTransaction(messageV0);
 };
@@ -157,24 +161,23 @@ export async function sendTx(
   priorityFees?: PriorityFee,
   commitment: Commitment = DEFAULT_COMMITMENT,
   finality: Finality = DEFAULT_FINALITY
-): Promise<TransactionResult> {
-  let newTx = new Transaction();
-
-  if (priorityFees) {
-    const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
-      units: priorityFees.unitLimit,
-    });
-
-    const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
-      microLamports: priorityFees.unitPrice,
-    });
-    newTx.add(modifyComputeUnits);
-    newTx.add(addPriorityFee);
-  }
-  newTx.add(tx);
-  let versionedTx = await buildVersionedTx(connection, payer, newTx, latestBlockhash, commitment);
-  versionedTx.sign(signers);
+) {
   try {
+    let newTx = new Transaction();
+    if (priorityFees) {
+      const modifyComputeUnits = ComputeBudgetProgram.setComputeUnitLimit({
+        units: priorityFees.unitLimit,
+      });
+  
+      const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: priorityFees.unitPrice,
+      });
+      newTx.add(modifyComputeUnits);
+      newTx.add(addPriorityFee);
+    }
+    newTx.add(tx);
+    let versionedTx = await buildVersionedTx(payer, newTx, latestBlockhash, commitment);
+    versionedTx.sign(signers);
     console.log((await connection.simulateTransaction(versionedTx, undefined)))
 
     const sig = await connection.sendTransaction(versionedTx, {
@@ -185,24 +188,23 @@ export async function sendTx(
     let txResult = await getTxDetails(connection, sig, commitment, finality);
     if (!txResult) {
       return {
-        success: false,
-        error: "Transaction failed",
+        confirmed: false,
+        content: "Transaction failed",
       };
     }
     return {
-      success: true,
-      signature: sig,
-      results: txResult,
+      confirmed: true,
+      content: txResult,
     };
-  } catch (e) {
-    if (e instanceof SendTransactionError) {
-      let ste = e as SendTransactionError;
+  } catch (err) {
+    if (err instanceof SendTransactionError) {
+      let ste = err as SendTransactionError;
     } else {
-      console.error(e);
+      console.error(err);
     }
     return {
-      error: e,
-      success: false,
+      confirmed: false,
+      content: err,
     };
   }
 }
@@ -252,7 +254,7 @@ export const simulateTxBeforeSendBundle = async (
 ) => {
   const results = await Promise.all(txs.map(async (tx) => {
     try {
-      const txid = await connection.simulateTransaction(tx, { commitment: DEFAULT_COMMITMENT});
+      const txid = await connection.simulateTransaction(tx, { commitment: "processed"});
       const sig = base58.encode(tx.signatures[0]);
       if (txid.value.err) {
         console.log(`simulation err, sig: ${sig}`, txid.value.err);

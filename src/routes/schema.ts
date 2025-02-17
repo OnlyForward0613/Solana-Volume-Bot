@@ -1,5 +1,4 @@
 import Joi from 'joi';
-import { JITO_FEE, RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT } from '../config';
 export default {
   credential: Joi.object().keys({
     email: Joi.string().required().email(),
@@ -8,11 +7,6 @@ export default {
   refreshToken: Joi.object().keys({
     refreshToken: Joi.string().required().min(1),
   }),
-  // auth: Joi.object()
-  //   .keys({ 
-  //     authorization: JoiAuthBearer().required(),
-  //   })
-  //   .unknown(true),
   signup: Joi.object().keys({
     name: Joi.string().required().min(3),
     email: Joi.string().required().email(),

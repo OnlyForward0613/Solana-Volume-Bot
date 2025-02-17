@@ -3,9 +3,9 @@ import { launchTokenService, distributionService, gatherService, sellService, se
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { ResponseStatus } from "../core/ApiResponse";
-import { AmountType, Key, NetworkType, WalletKey, WalletType } from "../cache/keys";
-import { getJson, getListRange, getValue } from "../cache/query";
-import { connection, JITO_FEE } from "../config";
+import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
+import { getArray, getJson, getValue } from "../cache/query";
+import { DEFAULT_JITO_FEE, jitoFees, userConnections } from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import { getSPLBalance, isFundSufficent, isValidSolanaPrivateKey } from "../helper/util";
 import { DEFAULT_POW } from "../pumpfun/sdk";
@@ -13,28 +13,31 @@ import { getAllWallets } from "../cache/repository/WalletCache";
 
 export async function launchToken(req: Request, res: Response) {
   try {
-    const devSK = await getValue(WalletKey.DEV) ?? null
-    const sniperSK = await getValue(WalletKey.SNIPER) ?? null
-    const commonSKs = await getListRange<string>(WalletKey.COMMON) ?? [];
-    const mintSK = await getValue(Key.MINT_PRIVATEKEY) ?? null;
+    const authKey = req.headers.authorization as string;
+    const devSK = await getValue(WalletKey.DEV, authKey) ?? null
+    const sniperSK = await getValue(WalletKey.SNIPER, authKey) ?? null
+    const commonSKs = await getArray<string>(WalletKey.COMMON, authKey) ?? [];
+    const fundPK = await getValue(WalletKey.FUND, authKey) ?? null
+    
+    const mintSK = await getValue(Key.MINT_PRIVATEKEY, authKey) ?? null;
 
-    const devSolAmount = Number(await getValue(AmountType.DEV)) ?? 0;
-    const sniperSolAmount = Number(await getValue(AmountType.SNIPER)) ?? 0; 
-    const commonSolAmounts = await getListRange<number>(AmountType.COMMON) ?? [];
+    const devSolAmount = Number(await getValue(AmountType.DEV, authKey)) ?? 0;
+    const sniperSolAmount = Number(await getValue(AmountType.SNIPER, authKey)) ?? 0; 
+    const commonSolAmounts = await getArray<number>(AmountType.COMMON, authKey) ?? [];
 
-    const tokenInfo = await getJson<TokenMetadataType>(Key.TOKEN_METADATA) ?? null;
+    const tokenInfo = await getJson<TokenMetadataType>(Key.TOKEN_METADATA, authKey) ?? null;
     if (!tokenInfo) throw Error("token metadata doesn't exist"); 
     console.log(tokenInfo);
     
     if (!mintSK) throw Error("Mint addresss doen't exist");
-
+    if (!fundPK) throw Error("Fund wallet doesn't exist"); 
     if (!devSolAmount) throw Error("Dev solAmount doesn't exist");
     if (!devSK) throw Error("Dev wallet doesn't exist");
 
     if (!sniperSolAmount) throw Error("sniper solAmount doesn't exist");
     if (!sniperSK) throw Error("sniper wallet doesn't exist");
 
-    const jitoFee =  Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
+    const jitoFee =  jitoFees[authKey];
     
     const checkers = commonSolAmounts.map(value => value > 0);
     
@@ -47,8 +50,11 @@ export async function launchToken(req: Request, res: Response) {
     let sniperAmount = BigInt(sniperSolAmount * LAMPORTS_PER_SOL);
 
     const devAccount = Keypair.fromSecretKey(bs58.decode(devSK)); 
+    const fundAccount = Keypair.fromSecretKey(bs58.decode(fundPK)); 
     const sniperAccount = Keypair.fromSecretKey(bs58.decode(sniperSK));
     const mint = Keypair.fromSecretKey(bs58.decode(mintSK));
+
+    const connection = userConnections[authKey]
 
     if (!isFundSufficent(devAccount.publicKey, devAmount, connection)) 
       throw Error("Dev wallet doesn' have enough fund");
@@ -63,6 +69,7 @@ export async function launchToken(req: Request, res: Response) {
 
     const result = await launchTokenService(
       {
+        fundAccount,
         devAccount,
         sniperAccount,
         commonAccounts: realCommonAccounts,
@@ -72,7 +79,7 @@ export async function launchToken(req: Request, res: Response) {
       }, 
       tokenInfo,
       mint,
-      connection,
+      authKey,
       jitoFee,
     );
 
@@ -91,9 +98,10 @@ export async function distributionSol(req: Request, res: Response) {
       sniperAmount,
       commonAmounts
     } = req.body;
-    const fundWalletSK = await getValue(WalletKey.FUND) ?? "";
-    const sniperWalletSK = await getValue(WalletKey.SNIPER) ?? "";
-    const commonWalletSKs: string[] = await getListRange(WalletKey.COMMON) ?? [];
+    const authKey = req.headers.authorization as string;
+    const fundWalletSK = await getValue(WalletKey.FUND, authKey) ?? "";
+    const sniperWalletSK = await getValue(WalletKey.SNIPER, authKey) ?? "";
+    const commonWalletSKs: string[] = await getArray<string>(WalletKey.COMMON, authKey) ?? [];
     const walletSKs: string[] = [];
     const solAmounts: number[] = [];
     console.log(commonAmounts);
@@ -112,8 +120,9 @@ export async function distributionSol(req: Request, res: Response) {
     walletSKs.push(...commonWalletSKs);
 
     if (!solAmounts.length) throw Error("Any wallet doesn't exsit to fund");
-    const jitoFee =  Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
+    const jitoFee =  jitoFees[authKey];
 
+    const connection = userConnections[authKey];
     const result = await distributionService(
       { 
         fundWalletSK,
@@ -135,7 +144,8 @@ export async function distributionSol(req: Request, res: Response) {
 
 export const gatherFund = async (req: Request, res: Response) => {
   try {
-    const fundWalletSK = await getValue(WalletKey.FUND) ?? null;
+    const authKey = req.headers.authorization as string;
+    const fundWalletSK = await getValue(WalletKey.FUND, authKey) ?? null;
     if (!fundWalletSK) throw Error("fund wallet doesn't exist");
 
     const walletSKs: string[] = [];
@@ -143,16 +153,17 @@ export const gatherFund = async (req: Request, res: Response) => {
     // const devWalletSK = await getValue(WalletKey.DEV) ?? null;
     // if (devWalletSK) walletSKs.push(devWalletSK);
 
-    const sniperWalletSK = await getValue(WalletKey.SNIPER) ?? null;
+    const sniperWalletSK = await getValue(WalletKey.SNIPER, authKey) ?? null;
     if (sniperWalletSK) walletSKs.push(sniperWalletSK);
 
-    const commonWalletSKs = await getListRange<string>(WalletKey.COMMON);
+    const commonWalletSKs = await getArray<string>(WalletKey.COMMON, authKey);
     if (commonWalletSKs?.length) walletSKs.push(...commonWalletSKs);
     
     if (!walletSKs?.length) throw Error("There isn't any wallet to fund");
     
-    const jitoFee =  Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
+    const jitoFee =  jitoFees[authKey];
 
+    const connection = userConnections[authKey];
     const result = await gatherService(
       { 
         fundWalletSK, 
@@ -175,22 +186,25 @@ export const gatherFund = async (req: Request, res: Response) => {
 export const sellByPercentage = async (req: Request, res: Response) => {
   try {
     const walletSK = req.body.walletSK;
+    const authKey = req.headers.authorization as string;
     if (!isValidSolanaPrivateKey([walletSK])) throw Error("Invalid solana address");
     const percentage = req.body.percentage;
-    const walletSKs = await getAllWallets(); 
+    const walletSKs = await getAllWallets(authKey); 
     console.log(walletSKs);
     if (!walletSKs?.length || !walletSKs.includes(walletSK)) throw Error("the wallet doesn't exsit in our wallets");
-    const mintSK = await getValue(Key.MINT_PRIVATEKEY) ?? null;
+    const mintSK = await getValue(Key.MINT_PRIVATEKEY, authKey) ?? null;
     if (!mintSK) throw Error("Mint address doesn't exist");
     const mintAccount = Keypair.fromSecretKey(bs58.decode(mintSK));
     const walletAccount = Keypair.fromSecretKey(bs58.decode(walletSK));
+
+    const connection = userConnections[authKey];
     const tokenFloatAmount = await getSPLBalance(
       connection,
       mintAccount.publicKey,
       walletAccount.publicKey,
     );
 
-    const jitoFee = Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
+    const jitoFee = jitoFees[authKey];
     
     if (!tokenFloatAmount) throw Error("Don't have any token in the wallet");
     let tokenAmount = BigInt(Math.floor(DEFAULT_POW * tokenFloatAmount * percentage / 100));
@@ -200,8 +214,8 @@ export const sellByPercentage = async (req: Request, res: Response) => {
         walletAccount,
         mintPubKey: mintAccount.publicKey,
         tokenAmount
-      }, 
-      connection,
+      },
+      authKey, 
       jitoFee,
     );
 
@@ -218,15 +232,18 @@ export const sellByPercentage = async (req: Request, res: Response) => {
 export const sellByAmount = async (req: Request, res: Response) => {
   try {
     const walletSK = req.body.walletSK;
+    const authKey = req.headers.authorization as string;
     if (!isValidSolanaPrivateKey([walletSK])) throw Error("Invalid solana address");
     const tokenAmount = req.body.tokenAmount;
-    const walletSKs = await getAllWallets(); 
+    const walletSKs = await getAllWallets(authKey); 
     console.log(walletSKs);
     if (!walletSKs?.length || !walletSKs.includes(walletSK)) throw Error("the wallet doesn't exsit in our wallets");
-    const mintSK = await getValue(Key.MINT_PRIVATEKEY) ?? null;
+    const mintSK = await getValue(Key.MINT_PRIVATEKEY, authKey) ?? null;
     if (!mintSK) throw Error("Mint address doesn't exist");
     const mintAccount = Keypair.fromSecretKey(bs58.decode(mintSK));
     const walletAccount = Keypair.fromSecretKey(bs58.decode(walletSK));
+
+    const connection = userConnections[authKey];
     const tokenFloatAmount = await getSPLBalance(
       connection,
       mintAccount.publicKey,
@@ -237,7 +254,7 @@ export const sellByAmount = async (req: Request, res: Response) => {
 
     if (!tokenFloatAmount || tokenFloatAmount < tokenAmount) throw Error("Don't have sufficent token in the wallet");
    
-    const jitoFee = Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
+    const jitoFee = jitoFees[authKey];
     
     const result = await sellService(
       {
@@ -245,7 +262,7 @@ export const sellByAmount = async (req: Request, res: Response) => {
         mintPubKey: mintAccount.publicKey,
         tokenAmount: BigInt(Math.floor(DEFAULT_POW * tokenAmount)),
       }, 
-      connection,
+      authKey,
       jitoFee,
     );
 
@@ -261,11 +278,12 @@ export const sellByAmount = async (req: Request, res: Response) => {
 // sell all tokens in wallets
 export const sellDumpAll = async (req: Request, res: Response) => {
   try {
-    const devSK = await getValue(WalletKey.DEV) ?? null
-    const sniperSK = await getValue(WalletKey.SNIPER) ?? null
-    const fundSK = await getValue(WalletKey.FUND) ?? null;
-    const commonSKs = await getListRange<string>(WalletKey.COMMON) ?? [];
-    const mintSK = await getValue(Key.MINT_PRIVATEKEY) ?? null;
+    const authKey = req.headers.authorization as string;
+    const devSK = await getValue(WalletKey.DEV, authKey) ?? null
+    const sniperSK = await getValue(WalletKey.SNIPER, authKey) ?? null
+    const fundSK = await getValue(WalletKey.FUND, authKey) ?? null;
+    const commonSKs = await getArray<string>(WalletKey.COMMON, authKey) ?? [];
+    const mintSK = await getValue(Key.MINT_PRIVATEKEY, authKey) ?? null;
 
     if (!mintSK) throw Error("Mint addresss doen't exist");
     if (!devSK) throw Error("Dev wallet doesn't exist");
@@ -280,8 +298,10 @@ export const sellDumpAll = async (req: Request, res: Response) => {
 
     let walletAccounts: Keypair[] = [devAccount, sniperAccount, ...commonAccounts];
 
-    let sellTokenAmounts: bigint[] = []
-    let sellAccounts: Keypair[] = []
+    let sellTokenAmounts: bigint[] = [];
+    let sellAccounts: Keypair[] = [];
+    const connection = userConnections[authKey];
+
     await Promise.all(walletAccounts.map(async (account, index) => {
       let amount = await getSPLBalance(connection, mint.publicKey, account.publicKey);
       if (amount && amount > 0) {
@@ -292,8 +312,8 @@ export const sellDumpAll = async (req: Request, res: Response) => {
 
     if (!sellAccounts.length) throw Error("Any wallet dosn't have any token");
     
-    const jitoFee = Number(await getValue(NetworkType.JITO_FEE)) ?? JITO_FEE;
-
+    const jitoFee = jitoFees[authKey];
+    
     const result = await sellDumpAllService(
       {
         payer: fundAccount,
@@ -301,7 +321,7 @@ export const sellDumpAll = async (req: Request, res: Response) => {
         sellTokenAmounts,
         mintPubKey: mint.publicKey
       },
-      connection,
+      authKey,
       jitoFee,
     );
 

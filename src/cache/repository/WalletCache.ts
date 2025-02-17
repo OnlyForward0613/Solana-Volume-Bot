@@ -1,10 +1,10 @@
 import { Wallets } from "../../types";
 import { DynamicKey, getDynamicKey, WalletKey, WalletType } from "../keys";
-import { getListRange, getValue } from "../query";
+import { getArray, getIdFromAuthKey, getValue } from "../query";
 
 export function getDevWalletKey() {
   return getDynamicKey(DynamicKey.WALLET, WalletType.DEV);
-} 
+}
 
 export function getFundWalletKey() {
   return getDynamicKey(DynamicKey.WALLET, WalletType.FUND);
@@ -18,19 +18,21 @@ export function getCommonWalletKey() {
   return getDynamicKey(DynamicKey.WALLET, WalletType.COMMON);
 }
 
-export async function getAllWallets() {
-  const wallet = {
-    fund: await getValue(WalletKey.DEV) ?? "",
-    dev: await getValue(WalletKey.DEV) ?? "",
-    sniper: await getValue(WalletKey.SNIPER) ?? "",
-    common: await getListRange(WalletKey.COMMON) ?? [],
-  } as Wallets;
+export async function getAllWallets(authKey: string) {
+  const id = await getIdFromAuthKey(authKey);
+  if (id) {
+    const wallets = {
+      fund: (await getValue(WalletKey.FUND, authKey)) ?? "",
+      dev: (await getValue(WalletKey.DEV, authKey)) ?? "",
+      sniper: (await getValue(WalletKey.SNIPER, authKey)) ?? "",
+      common: (await getArray<string>(WalletKey.COMMON, authKey)) ?? [],
+    } as Wallets;
 
-  const walletSKs: string[] = [];
-  if (wallet.fund) walletSKs.push(wallet.fund);
-  if (wallet.dev) walletSKs.push(wallet.dev);
-  if (wallet.sniper) walletSKs.push(wallet.sniper);
-  if (wallet.common.length) walletSKs.push(...wallet.common);
-  return walletSKs;
-
+    const walletSKs: string[] = [];
+    if (wallets.fund) walletSKs.push(wallets.fund);
+    if (wallets.dev) walletSKs.push(wallets.dev);
+    if (wallets.sniper) walletSKs.push(wallets.sniper);
+    if (wallets.common.length) walletSKs.push(...wallets.common);
+    return walletSKs;
+  }
 }
