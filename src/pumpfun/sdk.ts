@@ -239,9 +239,6 @@ export class PumpFunSDK {
 
       
       let simulateSniperSellSolAmount = bondingCurveAccount.simulateSell([sniperTokenAmount], globalAccount.feeBasisPoints)[0];
-      // console.log("feeBasicPoints", globalAccount.feeBasisPoints);
-      // console.log("sniperTokenAmount", sniperTokenAmount);
-      // console.log("simulateSniperSellSolAmount", simulateSniperSellSolAmount);
       
       let sniperSellIx = await this.getSellInstructionsBySimulateSellSolAmount(
         sniperAccount.publicKey,
@@ -270,19 +267,6 @@ export class PumpFunSDK {
 
 
       let simulateCommonBuyTokenAmounts = bondingCurveAccount.simulateBuy(commonSolAmounts);
-      // console.log("commonSolAmounts", commonSolAmounts);
-      // console.log("simulateCommonBuyTokenAmounts", simulateCommonBuyTokenAmounts);
-
-      // let commonBuyIxs = await Promise.all(commonAccounts.map(async (buyer, index) => {
-      //   return await this.getBuyInstructionsBySimulateBuyTokenAmount(
-      //     buyer.publicKey,
-      //     mintPubKey,
-      //     simulateCommonBuyTokenAmounts[index],
-      //     commonAmounts[index],
-      //     globalAccount.feeRecipient,
-      //     SLIPPAGE_BASIS_POINTS,
-      //   );
-      // }));
 
       let commonBuyIxs: Transaction[] = [];
       for (let i = 0; i < commonAccounts.length; i++) {
@@ -322,8 +306,6 @@ export class PumpFunSDK {
         bundleTxs.push(newVersionedTx);
       }
 
-      console.log(bundleTxs);
-        
       let result;
       let count = 0;
 
@@ -467,8 +449,7 @@ export class PumpFunSDK {
 
       let lutAccount = null;      
       if (lutProviders[authKey]) lutAccount = (await this.connection.getAddressLookupTable(lutProviders[authKey])).value
-      console.log("lutAccounts", lutAccount);
-
+      
       await Promise.all(chunkCommonBuyIxs.map(async (buyIxs, index) => {
         let sellTx = (new Transaction).add(...buyIxs);
         if (index == chunkCommonBuyIxs.length - 1) sellTx.add(tipIx); // add jito fee instruction to first transaction of jito bundle
@@ -643,8 +624,6 @@ export class PumpFunSDK {
       buyAmountSol,
       slippageBasisPoints
     );
-
-    // console.log(buyAmountSol, "=> ", buyAmountWithSlippage);
 
     return await this.getBuyInstructions(
       buyer,
