@@ -658,25 +658,25 @@ export const authKeyCheckWhileEntering = async (
     const result = await authKeyCheck(authKey);
     if (result) {
       
-      const RPC_ENDPOINT = await getValue(NetworkType.RPC_ENDPOINT, authKey) ?? null;
-      const RPC_WEBSOCKET_ENDPOINT = await getValue(NetworkType.RPC_WEBSOCKET_ENDPOINT, authKey) ?? null;
-      const jitoFee = await getValue(NetworkType.JITO_FEE, authKey) ?? null;
-      console.log("RPC_ENDPOINT", RPC_ENDPOINT);
-      console.log("RPC_WEBSOCKET_ENDPOINT", RPC_WEBSOCKET_ENDPOINT);
-      console.log("jitoFee", jitoFee);
-      // inital setting of userConnections and pumpfunSDKs based on user authKey
-      if (RPC_ENDPOINT && RPC_WEBSOCKET_ENDPOINT) {
-        configNetwork(RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT, authKey);
-      }
-      else {
-        configNetwork(PRIVATE_RPC_ENDPOINT, PRIVATE_RPC_WEBSOCKET_ENDPOINT, authKey);
-      }
+    //   const RPC_ENDPOINT = await getValue(NetworkType.RPC_ENDPOINT, authKey) ?? null;
+    //   const RPC_WEBSOCKET_ENDPOINT = await getValue(NetworkType.RPC_WEBSOCKET_ENDPOINT, authKey) ?? null;
+    //   const jitoFee = await getValue(NetworkType.JITO_FEE, authKey) ?? null;
+    //   console.log("RPC_ENDPOINT", RPC_ENDPOINT);
+    //   console.log("RPC_WEBSOCKET_ENDPOINT", RPC_WEBSOCKET_ENDPOINT);
+    //   console.log("jitoFee", jitoFee);
+    //   // inital setting of userConnections and pumpfunSDKs based on user authKey
+    //   if (RPC_ENDPOINT && RPC_WEBSOCKET_ENDPOINT) {
+    //     configNetwork(RPC_ENDPOINT, RPC_WEBSOCKET_ENDPOINT, authKey);
+    //   }
+    //   else {
+    //     configNetwork(PRIVATE_RPC_ENDPOINT, PRIVATE_RPC_WEBSOCKET_ENDPOINT, authKey);
+    //   }
 
-      if (jitoFee) {
-        jitoFees[authKey] = Number(jitoFee) * LAMPORTS_PER_SOL;
-      } else {
-        jitoFees[authKey] = DEFAULT_JITO_FEE;
-      }
+      // if (jitoFee) {
+      //   jitoFees[authKey] = Number(jitoFee) * LAMPORTS_PER_SOL;
+      // } else {
+      //   jitoFees[authKey] = DEFAULT_JITO_FEE;
+      // }
 
       res.status(ResponseStatus.SUCCESS).send("Success");
     } else {
