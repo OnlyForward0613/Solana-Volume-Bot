@@ -301,20 +301,7 @@ export class PumpFunSDK {
       let chunkCommonAccounts = chunk(commonAccounts, ixChunkLimit);
       let commonPKs = commonAccounts.map(account => account.publicKey);
       console.log(commonPKs)
-      // await Promise.all(chunkCommonBuyIxs.map(async (buyIxs, index) => {
-      //   let newTx = (new Transaction).add(...buyIxs);
-      //   let newVersionedTx = await buildTx(
-      //     connection,
-      //     newTx,
-      //     payer.publicKey,
-      //     [payer, ...chunkCommonAccounts[index]],
-      //     latestBlockhash
-      //   );
-      //   if (!newVersionedTx) throw Error("Errors when buy tokens in common wallets");
-      //   bundleTxs.push(newVersionedTx);
-      // }));
-
-      // let lutAccounts = lutProviders["first"].computeIdealLookupTablesForAddresses(commonPKs); // getting lookup table accounts
+     
       let lutAccount = null;
       if (lutProviders[authKey]) lutAccount = (await this.connection.getAddressLookupTable(lutProviders[authKey])).value
       console.log("lutAccounts", lutAccount);
