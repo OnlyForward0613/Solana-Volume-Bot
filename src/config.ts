@@ -36,11 +36,6 @@ export const jitoFees: { [key: string] : number } = {};
 // export let sdk = new PumpFunSDK(private_anchorProvider); // for only 
 
 // redis server setting
-export const redis = {
-  host: process.env.REDIS_HOST || "localhsot",
-  port: parseInt(process.env.REDIS_PORT || "6379"),
-  password: process.env.REDIS_PASSWORD || '',
-};
 
 export const environment = process.env.NODE_ENV || 'development'
 

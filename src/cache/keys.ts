@@ -3,6 +3,7 @@ export enum Key {
   TOKEN_METADATA = 'TOKEN_METADATA',
   MINT_PRIVATEKEY = 'MINT_PRIVATEKEY',
   USER_LIST = 'USER_LIST',
+  LUT_ADDRESS = 'LUT_ADDRESS',
 }
 
 export enum DynamicKey {

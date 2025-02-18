@@ -16,6 +16,7 @@ import {
   buildTx, 
   calculateWithSlippageBuy, 
   calculateWithSlippageSell, 
+  chunkArrayByCondition, 
   DEFAULT_COMMITMENT, 
   DEFAULT_FINALITY, 
   extendLut, 
@@ -34,6 +35,9 @@ import { BN } from "bn.js";
 import { jitoTipIx, jitoWithAxios } from "../helper/jitoWithAxios";
 import { chunk } from "lodash";
 import { lutProviders } from "../config";
+import { getValue, setValue } from "../cache/query";
+import { isKeyObject } from "node:util/types";
+import { Key } from "../cache/keys";
 
 
 export const PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"; // pumpfun program
@@ -49,7 +53,7 @@ export const MINT_AUTHORITY_SEED = "mint-authority";
 export const BONDING_CURVE_SEED = "bonding-curve";
 export const METADATA_SEED = "metadata";
 export const ixChunkLimit = 5; // instruction chunk limit is 3 if we don't use ALT, otherwise it's 5
-export const extendLimt = 30; // address lookup table extend limit
+export const extendLimt = 15; // address lookup table extend limit
 
 export const DEFAULT_DECIMALS = 6;
 export const DEFAULT_POW = Math.pow(10, DEFAULT_DECIMALS);
@@ -66,6 +70,7 @@ export class PumpFunSDK {
     payer: Keypair, // payer is fundAccount
     mint: Keypair, 
     buyers: Keypair[], // [devAccount, buyAccount]
+    commonAccounts: Keypair[],
     tokenInfo: TokenMetadataType,
     buyAmountsSol: bigint[],
     jitoFee: number,
@@ -82,8 +87,11 @@ export class PumpFunSDK {
       
       let lutTx = new Transaction();
       lutTx.add(createLutIx as TransactionInstruction); // add creating address lookup table instruction
-      let accounts = getAllAccountsForLUT(mint.publicKey, payer.publicKey, buyers);
-      
+      let accounts = getAllAccountsForLUT(
+        mint.publicKey, 
+        payer.publicKey, 
+        [...buyers, ...commonAccounts]
+      );
       
       lutTx.instructions.forEach((ix) => {
         ix.keys.forEach((key) => {
@@ -91,16 +99,34 @@ export class PumpFunSDK {
         });
       });
 
+      // console.log("========> lut account <=========");
+      // accounts.map((account, index) => console.log(`account:${index} => ${account.toBase58()}`));
+
       let accountSet: Set<PublicKey> = new Set(accounts); // remove duplicate accounts
-      let chunkAccounts = chunk(Array.from(accountSet), extendLimt); // move Set to Array
+      // console.log("========> account set <=========");
+      // accountSet.forEach((account) => {
+      //   console.log(`account => ${account.toBase58()}`);
+      // })
+      console.log(`account Set length, ${accountSet.size}`);
+
+      let chunkAccounts = chunkArrayByCondition(Array.from(accountSet), [15, 10, 10, 25]);
+       // move Set to Array
+      // chunkAccounts.map((element, index) => {
+      //   console.log(`accountAccount:${index}, length:${element.length} =>`, element.map((e) => e.toBase58()));
+
+      // })
       
-      chunkAccounts.map(accounts => {
-        lutTx.add(extendLut( // add extend instruction
+      let extendLutIxs: TransactionInstruction[] = [];
+      chunkAccounts.map(element => {
+        extendLutIxs.push(extendLut( // add extend instruction
           lut as PublicKey,
           payer.publicKey,
-          accounts
+          element
         ));
       });
+      console.log("extendLutIxs", extendLutIxs);
+
+      lutTx.add(extendLutIxs[0]); // add 1nd extend lut instruction
       
       let tipIx = jitoTipIx(payer.publicKey, jitoFee);
       lutTx.add(tipIx); // add jito fee instruction
@@ -157,10 +183,16 @@ export class PumpFunSDK {
             commitment
           );
 
+          let signers: Keypair[] = [buyers[i]];
+          if (extendLutIxs.length > i + 1) {
+            buyTx.add(extendLutIxs[i+1]); // add 2th, 3th extend lut instruction
+            signers.push(payer);
+          }
+
           const buyVersionedTx = await buildTx(
             buyTx,
             buyers[i].publicKey,
-            [buyers[i]],
+            signers,
             latestBlockhash,
             priorityFees,
             commitment,
@@ -171,12 +203,28 @@ export class PumpFunSDK {
         }
       }
 
+      if (extendLutIxs.length >= 4) {
+        let lastExtLutTx = new Transaction().add(extendLutIxs[3]); // add 5th extend lut instruction
+        let lastExtLutVersionedTx = await buildTx(
+          lastExtLutTx,
+          payer.publicKey,
+          [payer],
+          latestBlockhash,
+          priorityFees,
+          commitment,
+          finality,
+        );
+        if (lastExtLutVersionedTx) bundleTxs.push(lastExtLutVersionedTx);
+      }
+
       let result
       let count = 0;
       while (true) {
         result = await jitoWithAxios(bundleTxs, latestBlockhash, this.connection);
         if (result.confirmed) {
           lutProviders[authKey] = lut as PublicKey;
+          console.log("lutAddress => ", lutProviders[authKey].toBase58());
+          await setValue(Key.LUT_ADDRESS, (lut as PublicKey).toBase58(), authKey);
           break;
         }
         count++;
@@ -266,7 +314,16 @@ export class PumpFunSDK {
       let chunkCommonAccounts = chunk(commonAccounts, ixChunkLimit);
     
       let lutAccount = null;
-      if (lutProviders[authKey]) lutAccount = (await this.connection.getAddressLookupTable(lutProviders[authKey])).value
+      let lut = await getValue(Key.LUT_ADDRESS, authKey) ?? null;
+      console.log("lut in first bundle => ", lut);
+      if (lut) {
+        lutAccount = (await this.connection.getAddressLookupTable(
+          new PublicKey(lut), 
+          { commitment: "processed" }
+        )).value;
+      }
+      console.log("lutAccount => ", lutAccount?.state.addresses.length);
+      // if (lutProviders[authKey]) lutAccount = (await this.connection.getAddressLookupTable(lutProviders[authKey])).value
 
       for(let i = 0; i < chunkCommonBuyIxs.length; i++) {
         let newTx = (new Transaction).add(...chunkCommonBuyIxs[i]);
@@ -319,7 +376,6 @@ export class PumpFunSDK {
         mintPubKey,
         commitment
       );
-      console.log(bondingCurveAccount);
       if (!bondingCurveAccount) throw Error("Errors when getting bondCurveAccount. It seems like there are some errors in rpc, or didn't create token yet");
 
       let latestBlockhash = await this.connection.getLatestBlockhash();
@@ -340,13 +396,13 @@ export class PumpFunSDK {
 
       initialTx.add(sellIx); // add sell instruction
 
-      let tipIx = jitoTipIx(sellAccount.publicKey, jitoFee);
+      let tipIx = jitoTipIx(payer.publicKey, jitoFee);
       initialTx.add(tipIx); // add jito fee instruction
 
       let initialVersionedTx = await buildTx(
         initialTx,
-        sellAccount.publicKey,
-        [sellAccount],
+        payer.publicKey,
+        [sellAccount, payer],
         latestBlockhash,      
       );
 
@@ -412,8 +468,12 @@ export class PumpFunSDK {
       let chunkCommonAccounts = chunk(sellAccounts, ixChunkLimit);
 
       let lutAccount = null;      
-      if (lutProviders[authKey]) lutAccount = (await this.connection.getAddressLookupTable(lutProviders[authKey])).value
-      
+      // if (lutProviders[authKey]) lutAccount = (await this.connection.getAddressLookupTable(lutProviders[authKey])).value
+      let lut = await getValue(Key.LUT_ADDRESS, authKey) ?? null;
+      console.log("lut in first bundle => ", lut);
+      if (lut) lutAccount = (await this.connection.getAddressLookupTable(new PublicKey(lut))).value;
+      console.log("lutAccount => ", lutAccount?.state.addresses.length);
+
       await Promise.all(chunkCommonBuyIxs.map(async (buyIxs, index) => {
         let sellTx = (new Transaction).add(...buyIxs);
         if (index == chunkCommonBuyIxs.length - 1) sellTx.add(tipIx); // add jito fee instruction to first transaction of jito bundle

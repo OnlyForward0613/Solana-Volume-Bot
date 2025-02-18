@@ -1,7 +1,7 @@
-import { Keypair, LAMPORTS_PER_SOL, SystemProgram } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
 import { LaunchTokenType, DistributionType, GatherType, sellType, SellDumpAllType } from "../types";
 import { buildTx, simulateTxBeforeSendBundle, sleep } from "../helper/util";
-import { DEFAULT_JITO_FEE, pumpFunSDKs} from "../config";
+import { DEFAULT_JITO_FEE, private_connection, pumpFunSDKs} from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import base58 from "bs58";
 import { getJitoTipWallet, jitoWithAxios } from "../helper/jitoWithAxios";
@@ -9,6 +9,8 @@ import chunk from 'lodash/chunk';
 import { Transaction } from "@solana/web3.js";
 import { TransactionInstruction } from "@solana/web3.js";
 import { Connection } from "@solana/web3.js";
+import { getValue } from "../cache/query";
+import { Key } from "../cache/keys";
 
 const SLIPPAGE_BASIS_POINTS = 500n;
 
@@ -32,30 +34,24 @@ export async function launchTokenService(
 
     let sdk = pumpFunSDKs[authKey];
     let boundingCurveAccount = await sdk.getBondingCurveAccount(mint.publicKey);
-    console.log(boundingCurveAccount);
+
+    let lutAccount;
+    let lut = await getValue(Key.LUT_ADDRESS, authKey) ?? null;
+    console.log("lut in first bundle => ", lut);
+    if (lut) lutAccount = (await private_connection.getAddressLookupTable(new PublicKey(lut))).value;
+    console.log("lutAccount => ", lutAccount?.state.addresses.length);
     
     // configure lookup table
     if (!boundingCurveAccount) {
 
       let globalAccount = await sdk.getGlobalAccount();
       if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
-
-      console.log("jito fee: ", jitoFee);
-      console.log("global account: ", globalAccount);
-      console.log("fundAccount", fundAccount.publicKey.toBase58());
-      console.log("devAccount", devAccount.publicKey.toBase58());
-      console.log("sniperAccount", sniperAccount.publicKey.toBase58());
-      console.log("mint", mint.publicKey.toBase58());
-      console.log("devAmount", devAmount);
-      console.log("sniperAmount", sniperAmount);
-      console.log("commonAccounts", commonAccounts.map(account => account.publicKey.toBase58()));
-      console.log("commonAmounts", commonAmounts);
-      console.log("tokenInfo", tokenInfo);
       
       let createResult = await sdk.launchToken(
         fundAccount, // payer
         mint,
         [devAccount, sniperAccount], // buyers
+        commonAccounts,
         tokenInfo,
         [devAmount, sniperAmount],
         jitoFee,

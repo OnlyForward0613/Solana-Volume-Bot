@@ -358,6 +358,7 @@ export const getAllAccountsForLUT = (
     accounts.map(account => {
       const ataAccount = getAssociatedTokenAddressSync(mintPK, account.publicKey);
       accountsForLUT.push(account.publicKey, ataAccount);
+      // console.log(`account: ${account.publicKey.toBase58()}, ataAccount: ${ataAccount.toBase58()}`);
     });
 
     const mplTokenMetadata = new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID);
@@ -395,7 +396,7 @@ export const getAllAccountsForLUT = (
       new PublicKey(PROGRAM_ID), // pumpfun program
       FEE_RECIPICEMT,
       SystemProgram.programId,
-      TOKEN_2022_PROGRAM_ID,
+      // TOKEN_2022_PROGRAM_ID,
       TOKEN_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID,
       SYSVAR_RENT_PUBKEY,
@@ -419,7 +420,7 @@ export const initializeLUT = async (
     return AddressLookupTableProgram.createLookupTable({
       authority: authorityPK,
       payer: authorityPK,
-      recentSlot: slot - 1
+      recentSlot: slot
     });
   } catch (err) {
     console.log(`Errors when initializing LUT, ${err}`);
@@ -438,4 +439,19 @@ export const extendLut = (
     payer: payerPK,
     addresses: accounts
   });
+}
+
+export const chunkArrayByCondition = (
+  accounts: PublicKey[],
+  chunkCondition: number[],
+) => {
+  let chunkAccounts: PublicKey[][] = [];
+  let start = 0;
+  let end = 0;
+  for (let i = 0; i < chunkCondition.length; i++) {
+    start = end;
+    end = Math.min(accounts.length, start + chunkCondition[i]);
+    chunkAccounts.push(accounts.slice(start, end));
+  }
+  return chunkAccounts;
 }
