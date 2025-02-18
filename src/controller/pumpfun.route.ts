@@ -104,8 +104,6 @@ export async function distributionSol(req: Request, res: Response) {
     const commonWalletSKs: string[] = await getArray<string>(WalletKey.COMMON, authKey) ?? [];
     const walletSKs: string[] = [];
     const solAmounts: number[] = [];
-    console.log(commonAmounts);
-    console.log(commonWalletSKs);
     if (commonAmounts.length > 0 && commonAmounts.length != commonWalletSKs?.length) {
       console.log("commonWallets PUSH -> commonAmounts: ", commonAmounts);
       throw Error("Insufficent input of common wallets");
@@ -190,7 +188,6 @@ export const sellByPercentage = async (req: Request, res: Response) => {
     if (!isValidSolanaPrivateKey([walletSK])) throw Error("Invalid solana address");
     const percentage = req.body.percentage;
     const walletSKs = await getAllWallets(authKey); 
-    console.log(walletSKs);
     if (!walletSKs?.length || !walletSKs.includes(walletSK)) throw Error("the wallet doesn't exsit in our wallets");
     const mintSK = await getValue(Key.MINT_PRIVATEKEY, authKey) ?? null;
     if (!mintSK) throw Error("Mint address doesn't exist");
@@ -236,7 +233,6 @@ export const sellByAmount = async (req: Request, res: Response) => {
     if (!isValidSolanaPrivateKey([walletSK])) throw Error("Invalid solana address");
     const tokenAmount = req.body.tokenAmount;
     const walletSKs = await getAllWallets(authKey); 
-    console.log(walletSKs);
     if (!walletSKs?.length || !walletSKs.includes(walletSK)) throw Error("the wallet doesn't exsit in our wallets");
     const mintSK = await getValue(Key.MINT_PRIVATEKEY, authKey) ?? null;
     if (!mintSK) throw Error("Mint address doesn't exist");

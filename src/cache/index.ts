@@ -1,5 +1,10 @@
 import { createClient } from "redis";
-import { redis } from "../config";
+
+const redis = {
+  host: process.env.REDIS_HOST || "localhsot",
+  port: parseInt(process.env.REDIS_PORT || "6379"),
+  password: process.env.REDIS_PASSWORD || "",
+};
 
 // const redisURL = 'redis://127.0.0.1:6379';
 
