@@ -1,4 +1,4 @@
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Commitment, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
 import { LaunchTokenType, DistributionType, GatherType, sellType, SellDumpAllType } from "../types";
 import { buildTx, simulateTxBeforeSendBundle, sleep } from "../helper/util";
 import { DEFAULT_JITO_FEE, private_connection, pumpFunSDKs} from "../config";
@@ -11,8 +11,9 @@ import { TransactionInstruction } from "@solana/web3.js";
 import { Connection } from "@solana/web3.js";
 import { getValue } from "../cache/query";
 import { Key } from "../cache/keys";
+import { BondingCurveAccount } from "../pumpfun/bondingCurveAccount";
 
-const SLIPPAGE_BASIS_POINTS = 500n;
+const SLIPPAGE_BASIS_POINTS = 200n;
 
 // launch new token on solana based on mint address
 export async function launchTokenService(
@@ -34,7 +35,7 @@ export async function launchTokenService(
 
     let sdk = pumpFunSDKs[authKey];
     let boundingCurveAccount = await sdk.getBondingCurveAccount(mint.publicKey);
-
+    // console.log(boundingCurveAccount);
     let lutAccount;
     let lut = await getValue(Key.LUT_ADDRESS, authKey) ?? null;
     console.log("lut in first bundle => ", lut);
@@ -46,7 +47,8 @@ export async function launchTokenService(
 
       let globalAccount = await sdk.getGlobalAccount();
       if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
-      
+      // console.log(globalAccount);
+
       let createResult = await sdk.launchToken(
         fundAccount, // payer
         mint,
@@ -77,7 +79,7 @@ export async function launchTokenService(
         jitoFee,
         authKey,
         globalAccount,
-        SLIPPAGE_BASIS_POINTS,
+        SLIPPAGE_BASIS_POINTS
       );
       if (secondResult.confirmed) {
         console.log(`https://solscan.io/tx/${secondResult.content}`)
@@ -86,6 +88,27 @@ export async function launchTokenService(
       return secondResult;
 
     } else {
+
+      // let globalAccount = await sdk.getGlobalAccount();
+      // if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
+      // console.log(globalAccount);
+      
+      // const secondResult = await sdk.firstBundleAfterCreation(
+      //   fundAccount,
+      //   sniperAccount,
+      //   commonAccounts,
+      //   commonAmounts,
+      //   mint.publicKey, // mint
+      //   jitoFee,
+      //   authKey,
+      //   globalAccount,
+      //   SLIPPAGE_BASIS_POINTS
+      // );
+      // if (secondResult.confirmed) {
+      //   console.log(`https://solscan.io/tx/${secondResult.content}`)
+      //   console.log(secondResult.content);
+      // } 
+      // return secondResult;
       console.log("The token already exists:", `https://pump.fun/${mint.publicKey.toBase58()}`);
       throw Error("the mint token already exists on Pumpfun");
     }

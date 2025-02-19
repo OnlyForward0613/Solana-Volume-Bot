@@ -36,7 +36,6 @@ import { jitoTipIx, jitoWithAxios } from "../helper/jitoWithAxios";
 import { chunk } from "lodash";
 import { lutProviders } from "../config";
 import { getValue, setValue } from "../cache/query";
-import { isKeyObject } from "node:util/types";
 import { Key } from "../cache/keys";
 
 
@@ -254,10 +253,11 @@ export class PumpFunSDK {
     try {
       let bondingCurveAccount = await this.getBondingCurveAccount(
         mintPubKey,
-        commitment
+        commitment // commitment is "processed"
       );
       if (!bondingCurveAccount) throw Error("Errors when getting bondCurveAccount. It seems like there are some errors in rpc, or didn't create token yet");
-
+      console.log(bondingCurveAccount);
+      
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
       let sniperSellTx = new Transaction();
@@ -267,7 +267,6 @@ export class PumpFunSDK {
       if (!tokenAmount) throw Error("Errors when getting token balance");
       let sniperTokenAmount = BigInt(Math.floor(tokenAmount * DEFAULT_POW));
 
-      
       let simulateSniperSellSolAmount = bondingCurveAccount.simulateSell([sniperTokenAmount], globalAccount.feeBasisPoints)[0];
       
       let sniperSellIx = await this.getSellInstructionsBySimulateSellSolAmount(
@@ -296,6 +295,9 @@ export class PumpFunSDK {
       bundleTxs.push(sniperSellVersionedTx);
 
       let simulateCommonBuyTokenAmounts = bondingCurveAccount.simulateBuy(commonSolAmounts);
+      simulateCommonBuyTokenAmounts.map((amount, index) => {
+        console.log(`wallet:${index}, tokenAmount: ${amount}, solAmount: ${commonSolAmounts[index]}`);
+      });
 
       let commonBuyIxs: Transaction[] = [];
       for (let i = 0; i < commonAccounts.length; i++) {

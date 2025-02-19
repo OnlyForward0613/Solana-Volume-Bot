@@ -200,7 +200,7 @@ export const setWallets = async (req: Request, res: Response) => {
     }
     if (
       commonPrivateKeys.length &&
-      !isValidSolanaPrivateKey([commonPrivateKeys])
+      !isValidSolanaPrivateKey(commonPrivateKeys)
     ) {
       throw Error("Invalid Input common wallet");
     }

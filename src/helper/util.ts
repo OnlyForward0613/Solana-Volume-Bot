@@ -24,7 +24,7 @@ import base58 from "bs58";
 import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
 import { BONDING_CURVE_SEED, FEE_RECIPICEMT, GLOBAL_ACCOUNT, METADATA_SEED, MINT_AUTHORITY, MPL_TOKEN_METADATA_PROGRAM_ID, PROGRAM_ID } from "../pumpfun/sdk";
 
-export const DEFAULT_COMMITMENT: Commitment = "confirmed";
+export const DEFAULT_COMMITMENT: Commitment = "processed";
 export const DEFAULT_FINALITY: Finality = "finalized";
 
 export async function printSOLBalance(
