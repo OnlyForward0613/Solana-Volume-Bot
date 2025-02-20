@@ -66,7 +66,7 @@ export class PumpFunSDK {
   }
 
   async launchToken(
-    payer: Keypair, // payer is fundAccount
+    payer: Keypair, // payer is devAccount
     mint: Keypair, 
     buyers: Keypair[], // [devAccount, buyAccount]
     commonAccounts: Keypair[],
@@ -108,7 +108,7 @@ export class PumpFunSDK {
       // })
       console.log(`account Set length, ${accountSet.size}`);
 
-      let chunkAccounts = chunkArrayByCondition(Array.from(accountSet), [15, 10, 10, 25]);
+      let chunkAccounts = chunkArrayByCondition(Array.from(accountSet), [10, 25, 25]);
        // move Set to Array
       // chunkAccounts.map((element, index) => {
       //   console.log(`accountAccount:${index}, length:${element.length} =>`, element.map((e) => e.toBase58()));
@@ -123,7 +123,6 @@ export class PumpFunSDK {
           element
         ));
       });
-      console.log("extendLutIxs", extendLutIxs);
 
       lutTx.add(extendLutIxs[0]); // add 1nd extend lut instruction
       
@@ -144,66 +143,72 @@ export class PumpFunSDK {
       
       if (!lutVersionedTx) throw Error("lut transation was empty");
       
-      let createTx = new Transaction();
-      let creatorAccount = buyers[0];
+      let createAndBuyDevTx = new Transaction();
+      let devAccount = buyers[0];
+      let sniperAccount = buyers[1];
       let createIx = await this.getCreateInstructions(
-        creatorAccount.publicKey, // creator is dev
+        devAccount.publicKey, // creator is dev
         tokenInfo.name,
         tokenInfo.symbol,
         tokenInfo.metadataUri,
         mint
       );
-      createTx.add(createIx);
+      createAndBuyDevTx.add(createIx);
       
-      let createVersionedTx = await buildTx(
-        createTx,
-        creatorAccount.publicKey,
-        [creatorAccount, mint],
-        latestBlockhash,
-        priorityFees,
-        commitment,
-        finality,
-        // lutAccount ? [lutAccount]: null
-      );
-
-      if (!createVersionedTx) throw Error("create transation was empty");
-
-      let bundleTxs: VersionedTransaction[] = [lutVersionedTx, createVersionedTx];
+      let bundleTxs: VersionedTransaction[] = [lutVersionedTx];
       let buySimulateAmountsSol = this.simulateBuys(buyAmountsSol);
 
       if (buyAmountsSol.length > 0) {
-        for (let i = 0; i < buyers.length; i++) {
-          let buyTx = await this.getBuyInstructionsBySolAmount( // using slippage buy
-            buyers[i].publicKey,
-            mint.publicKey,
-            buySimulateAmountsSol[i].tokenAmount,
-            buySimulateAmountsSol[i].solAmount,
-            slippageBasisPoints,
-            commitment
-          );
+        let buyDevTx = await this.getBuyInstructionsBySolAmount( // using slippage buy
+          devAccount.publicKey,
+          mint.publicKey,
+          buySimulateAmountsSol[0].tokenAmount,
+          buySimulateAmountsSol[0].solAmount,
+          slippageBasisPoints,
+          commitment
+        );
 
-          let signers: Keypair[] = [buyers[i]];
-          if (extendLutIxs.length > i + 1) {
-            buyTx.add(extendLutIxs[i+1]); // add 2th, 3th extend lut instruction
-            signers.push(payer);
-          }
+        createAndBuyDevTx.add(buyDevTx);
+        let createAndBuyDevVersionedTx = await buildTx( // devAccount create new token and buy tokens
+          createAndBuyDevTx,
+          devAccount.publicKey,
+          [devAccount, mint],
+          latestBlockhash,
+          priorityFees,
+          commitment,
+          finality,
+          // lutAccount ? [lutAccount]: null
+        );
+        if (!createAndBuyDevVersionedTx) throw Error("dev create and buy transation was empty");
+        bundleTxs.push(createAndBuyDevVersionedTx);
 
-          const buyVersionedTx = await buildTx(
-            buyTx,
-            buyers[i].publicKey,
-            signers,
-            latestBlockhash,
-            priorityFees,
-            commitment,
-            finality,
-            // lutAccount ? [lutAccount]: null
-          );
-          if (buyVersionedTx) bundleTxs.push(buyVersionedTx);
-        }
+        let buySniperTx = await this.getBuyInstructionsBySolAmount( // using slippage buy
+          sniperAccount.publicKey,
+          mint.publicKey,
+          buySimulateAmountsSol[1].tokenAmount,
+          buySimulateAmountsSol[1].solAmount,
+          slippageBasisPoints,
+          commitment
+        );
+
+        const buySniperVersionedTx = await buildTx(
+          buySniperTx,
+          sniperAccount.publicKey,
+          [sniperAccount],
+          latestBlockhash,
+          priorityFees,
+          commitment,
+          finality,
+          // lutAccount ? [lutAccount]: null
+        );
+        if (!buySniperVersionedTx) throw Error("sniper buy transation was empty");
+        bundleTxs.push(buySniperVersionedTx);
+      } else {
+        throw Error("Errors when simulate buy");
       }
 
-      if (extendLutIxs.length >= 4) {
-        let lastExtLutTx = new Transaction().add(extendLutIxs[3]); // add 5th extend lut instruction
+      for (let i = 1; i < extendLutIxs.length; i++) {
+        let lastExtLutTx = new Transaction().add(extendLutIxs[i]); // add 5th extend lut instruction
         let lastExtLutVersionedTx = await buildTx(
           lastExtLutTx,
           payer.publicKey,
@@ -213,7 +218,8 @@ export class PumpFunSDK {
           commitment,
           finality,
         );
-        if (lastExtLutVersionedTx) bundleTxs.push(lastExtLutVersionedTx);
+        if (!lastExtLutVersionedTx) throw Error("extendLut transation was empty")
+        bundleTxs.push(lastExtLutVersionedTx);
       }
 
       let result
@@ -257,7 +263,7 @@ export class PumpFunSDK {
       );
       if (!bondingCurveAccount) throw Error("Errors when getting bondCurveAccount. It seems like there are some errors in rpc, or didn't create token yet");
       console.log(bondingCurveAccount);
-      
+
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
       let sniperSellTx = new Transaction();
@@ -398,13 +404,13 @@ export class PumpFunSDK {
 
       initialTx.add(sellIx); // add sell instruction
 
-      let tipIx = jitoTipIx(payer.publicKey, jitoFee);
+      let tipIx = jitoTipIx(sellAccount.publicKey, jitoFee);
       initialTx.add(tipIx); // add jito fee instruction
 
       let initialVersionedTx = await buildTx(
         initialTx,
-        payer.publicKey,
-        [sellAccount, payer],
+        sellAccount.publicKey,
+        [sellAccount],
         latestBlockhash,      
       );
 
@@ -451,7 +457,7 @@ export class PumpFunSDK {
 
       const bundleTxs: VersionedTransaction[] = [];
 
-      let tipIx = jitoTipIx(payer.publicKey, jitoFee); // add jito fee instruction
+      let tipIx = jitoTipIx(sellAccounts[sellAccounts.length - 1].publicKey, jitoFee); // add jito fee instruction
       
       let simulateSniperSellSolAmounts = bondingCurveAccount.simulateSell(sellTokenAmounts, globalAccount.feeBasisPoints);
      
@@ -481,8 +487,8 @@ export class PumpFunSDK {
         if (index == chunkCommonBuyIxs.length - 1) sellTx.add(tipIx); // add jito fee instruction to first transaction of jito bundle
         let newVersionedTx = await buildTx(
           sellTx,
-          payer.publicKey,
-          [payer, ...chunkCommonAccounts[index]],
+          chunkCommonAccounts[index][0].publicKey,
+          chunkCommonAccounts[index],
           latestBlockhash,
           priorityFees,
           commitment,

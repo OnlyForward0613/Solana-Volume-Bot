@@ -1,6 +1,6 @@
-import { Commitment, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
 import { LaunchTokenType, DistributionType, GatherType, sellType, SellDumpAllType } from "../types";
-import { buildTx, simulateTxBeforeSendBundle, sleep } from "../helper/util";
+import { buildTx, sleep } from "../helper/util";
 import { DEFAULT_JITO_FEE, private_connection, pumpFunSDKs} from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import base58 from "bs58";
@@ -50,7 +50,7 @@ export async function launchTokenService(
       // console.log(globalAccount);
 
       let createResult = await sdk.launchToken(
-        fundAccount, // payer
+        devAccount, // payer
         mint,
         [devAccount, sniperAccount], // buyers
         commonAccounts,

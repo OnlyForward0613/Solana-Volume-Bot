@@ -84,7 +84,8 @@ export async function launchToken(req: Request, res: Response) {
     );
 
     if (result.confirmed) {
-      await addValueToArray(Key.MINT_LIST, authKey, mintSK);
+      await addValueToArray(Key.MINT_LIST, authKey, mint.publicKey.toBase58());
+      console.log("token mint address was successfully saved");
       res.status(ResponseStatus.SUCCESS).send(result.content);
     }
     else throw Error(result.content);
