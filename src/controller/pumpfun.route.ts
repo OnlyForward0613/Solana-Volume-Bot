@@ -4,7 +4,7 @@ import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { ResponseStatus } from "../core/ApiResponse";
 import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
-import { getArray, getJson, getValue } from "../cache/query";
+import { addValueToArray, getArray, getJson, getValue } from "../cache/query";
 import { DEFAULT_JITO_FEE, jitoFees, userConnections } from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import { getSPLBalance, isFundSufficent, isValidSolanaPrivateKey } from "../helper/util";
@@ -83,7 +83,11 @@ export async function launchToken(req: Request, res: Response) {
       jitoFee,
     );
 
-    if (result.confirmed) res.status(ResponseStatus.SUCCESS).send(result.content);
+    if (result.confirmed) {
+      await addValueToArray(Key.MINT_LIST, authKey, mint.publicKey.toBase58());
+      console.log("token mint address was successfully saved");
+      res.status(ResponseStatus.SUCCESS).send(result.content);
+    }
     else throw Error(result.content);
 
   } catch (err) {

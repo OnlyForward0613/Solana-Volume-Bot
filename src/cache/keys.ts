@@ -4,6 +4,7 @@ export enum Key {
   MINT_PRIVATEKEY = 'MINT_PRIVATEKEY',
   USER_LIST = 'USER_LIST',
   LUT_ADDRESS = 'LUT_ADDRESS',
+  MINT_LIST = 'MINT_LIST'
 }
 
 export enum DynamicKey {

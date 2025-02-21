@@ -72,6 +72,7 @@ export class BondingCurveAccount {
       simulateTokenBuyAmounts[i] = s < this.realTokenReserves ? s : this.realTokenReserves;
 
       this.realSolReserves += solAmounts[i];
+      this.virtualSolReserves += solAmounts[i];
       this.virtualTokenReserves -= simulateTokenBuyAmounts[i];
       this.realTokenReserves -= simulateTokenBuyAmounts[i];
     }
@@ -117,6 +118,7 @@ export class BondingCurveAccount {
       this.virtualTokenReserves += tokenAmounts[i];
       this.realTokenReserves += tokenAmounts[i];
       this.realSolReserves -= n; // simulateSolSellAmounts[i] + a // a is platform fee;
+      this.virtualSolReserves -= n;
     }
 
     return simulateSolSellAmounts;
