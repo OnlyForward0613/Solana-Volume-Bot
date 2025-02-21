@@ -337,8 +337,8 @@ export class PumpFunSDK {
         let newTx = (new Transaction).add(...chunkCommonBuyIxs[i]);
         let newVersionedTx = await buildTx(
           newTx,
-          payer.publicKey,
-          [payer, ...chunkCommonAccounts[i]],
+          chunkCommonAccounts[i][0].publicKey,
+          chunkCommonAccounts[i],
           latestBlockhash,
           priorityFees,
           commitment,
