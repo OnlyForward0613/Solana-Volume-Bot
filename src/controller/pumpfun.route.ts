@@ -1,5 +1,12 @@
 import { Request, Response } from "express";
-import { launchTokenService, distributionService, gatherService, sellOneService, sellDumpAllService } from "../services/pumpfun.service";
+import { 
+  launchTokenService, 
+  distributionService, 
+  gatherSolService, 
+  sellOneService, 
+  sellDumpAllService, 
+  gatherWSolService
+} from "../services/pumpfun.service";
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { ResponseStatus } from "../core/ApiResponse";
@@ -166,7 +173,7 @@ export const gatherFund = async (req: Request, res: Response) => {
     const jitoFee =  jitoFees[authKey];
 
     const connection = userConnections[authKey];
-    const result = await gatherService(
+    const result = await gatherSolService(
       { 
         fundWalletSK, 
         walletSKs 
@@ -181,6 +188,46 @@ export const gatherFund = async (req: Request, res: Response) => {
   } catch (err) {
     console.log(`Errors when gathering all wallet fund to fund wallet, ${err}`);
     res.status(ResponseStatus.NOT_FOUND).send(`Errors when gathering all wallet fund to fund wallet, ${err}`);
+  }
+}
+
+export const gatherWsol = async (req: Request, res: Response) => {
+  try {
+    const authKey = req.headers.authorization as string;
+    const fundWalletSK = await getValue(WalletKey.FUND, authKey) ?? null;
+    if (!fundWalletSK) throw Error("fund wallet doesn't exist");
+
+    const walletSKs: string[] = [];
+
+    const devWalletSK = await getValue(WalletKey.DEV, authKey) ?? null;
+    if (devWalletSK) walletSKs.push(devWalletSK);
+
+    const sniperWalletSK = await getValue(WalletKey.SNIPER, authKey) ?? null;
+    if (sniperWalletSK) walletSKs.push(sniperWalletSK);
+
+    const commonWalletSKs = await getArray<string>(WalletKey.COMMON, authKey);
+    if (commonWalletSKs?.length) walletSKs.push(...commonWalletSKs);
+    
+    if (!walletSKs?.length) throw Error("There isn't any wallet to fund");
+    
+    const jitoFee =  jitoFees[authKey];
+
+    const connection = userConnections[authKey];
+    const result = await gatherWSolService(
+      { 
+        fundWalletSK, 
+        walletSKs 
+      },
+      connection,
+      jitoFee,
+    );
+
+    if (result.confirmed) res.status(ResponseStatus.SUCCESS).send(result.content);
+    else throw Error(result.content);
+
+  } catch (err) {
+    console.log(`Errors when gathering WSOL from all wallets to fund wallet, ${err}`);
+    res.status(ResponseStatus.NOT_FOUND).send(`Errors when gathering WSOL from all wallets to fund wallet, ${err}`);
   }
 }
 
@@ -304,10 +351,11 @@ export const sellDumpAll = async (req: Request, res: Response) => {
     const connection = userConnections[authKey];
     // let mintPubKey = new PublicKey("G748DbPu713PkumVJo4nXcXuyCTBYbhNQtMjjgzxpump");
     await Promise.all(walletAccounts.map(async (account, index) => {
+      // let amount = await getSPLBalance(connection, mintPubKey, account.publicKey);
       let amount = await getSPLBalance(connection, mint.publicKey, account.publicKey);
       if (amount && amount > 0) {
         sellAccounts.push(account);
-        sellTokenAmounts.push(BigInt(Math.floor(DEFAULT_POW * amount / 10)));
+        sellTokenAmounts.push(BigInt(Math.floor(DEFAULT_POW * amount)));
       }
     }));
 

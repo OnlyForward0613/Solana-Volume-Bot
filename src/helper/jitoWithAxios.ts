@@ -104,9 +104,6 @@ export const jitoWithAxios = async (
         },
         "confirmed",
       );
-
-      console.log(confirmation);
-
       return { confirmed: !confirmation.value.err, content: jitoTxsignature };
 
     } else {

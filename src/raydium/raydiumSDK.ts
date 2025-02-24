@@ -15,10 +15,11 @@ import {
   DEFAULT_FINALITY, 
   extendLut,
   getAllAccountsForLUT,
+  getOwnerTokenAccounts,
   initializeLUT
 } from "../helper/util";
 import { PriorityFee } from "../pumpfun/types";
-import { Liquidity, LiquidityPoolKeys, Percent, Token, TOKEN_PROGRAM_ID, TokenAmount, TxVersion } from "@raydium-io/raydium-sdk";
+import { Currency, Liquidity, LiquidityPoolKeys, Percent, Token, TOKEN_PROGRAM_ID, TokenAmount, TxVersion } from "@raydium-io/raydium-sdk";
 import { createAssociatedTokenAccountInstruction, getAccount, getAssociatedTokenAddress, NATIVE_MINT } from "@solana/spl-token";
 import { jitoTipIx, jitoWithAxios } from "../helper/jitoWithAxios";
 import { chunk } from "lodash";
@@ -132,8 +133,8 @@ export class RaydiumSDK {
 
       // let tipIx = jitoTipIx(sellAccounts[sellAccounts.length - 1].publicKey, jitoFee); // add jito fee instruction
       
-      let chunkCommonBuyIxs = chunk(sellIxs, 3);
-      let chunkCommonAccounts = chunk(sellAccounts, 3);
+      let chunkCommonBuyIxs = chunk(sellIxs, 2);
+      let chunkCommonAccounts = chunk(sellAccounts, 2);
 
       let lutAccount = null;      
       let lut = await getValue(Key.LUT_ADDRESS, authKey) ?? null;
@@ -315,19 +316,19 @@ export class RaydiumSDK {
     finality: Finality = DEFAULT_FINALITY
   ) {
 
-    // const slippagePercent = new Percent(SLIPPAGE_BASIS_POINTS, 100);
-    // const poolInfo = await Liquidity.fetchInfo({
-    //   connection: this.connection,
-    //   poolKeys,
-    // });
+    const slippagePercent = new Percent(2000, 10_000); // 20%
+    const poolInfo = await Liquidity.fetchInfo({
+      connection: this.connection,
+      poolKeys,
+    });
 
-    // const computedAmountOut = Liquidity.computeAmountOut({
-    //   poolKeys,
-    //   poolInfo,
-    //   amountIn,
-    //   currencyOut: tokenOut,
-    //   slippage: slippagePercent,
-    // });
+    const computedAmountOut = Liquidity.computeAmountOut({
+      poolKeys,
+      poolInfo,
+      amountIn,
+      currencyOut: tokenOut,
+      slippage: slippagePercent,
+    });
     const ataIn = await getAssociatedTokenAddress(tokenIn.mint, sellerPK, false);
     const ataOut = await getAssociatedTokenAddress(tokenOut.mint, sellerPK, false);
 
@@ -345,21 +346,41 @@ export class RaydiumSDK {
         )
       );
     }
-    const { innerTransaction } = Liquidity.makeSwapFixedInInstruction(
-      {
-        poolKeys: poolKeys,
-        userKeys: {
-          tokenAccountIn: ataIn,
-          tokenAccountOut: ataOut,
-          owner: sellerPK,
-        },
-        amountIn: amountIn.raw,
-        minAmountOut: 0n,
+    // const { innerTransaction } = Liquidity.makeSwapFixedInInstruction(
+    //   {
+    //     poolKeys: poolKeys,
+    //     userKeys: {
+    //       tokenAccountIn: ataIn,
+    //       tokenAccountOut: ataOut,
+    //       owner: sellerPK,
+    //     },
+    //     amountIn: amountIn.raw,
+    //     minAmountOut: 0n,
+    //   },
+    //   TxVersion.V0, 
+    // );
+    const sellTokenATAs = await getOwnerTokenAccounts(this.connection, sellerPK);
+    const innerTransaction = await Liquidity.makeSwapInstructionSimple({
+      connection: this.connection,
+      makeTxVersion: 0,
+      poolKeys: {
+        ...poolKeys,
       },
-      TxVersion.V0, 
-    );
+      userKeys: {
+        tokenAccounts: sellTokenATAs,
+        owner: sellerPK,
+      },
+      amountIn: amountIn,
+      amountOut: computedAmountOut.amountOut,
+      fixedSide: "out",
+      config: {
+        bypassAssociatedCheck: false,
+      },
+    })
     if (!innerTransaction) return null;
-    transaction.add(...innerTransaction.instructions);
+    const instructions = innerTransaction.innerTransactions[0].instructions.filter(Boolean)
+    transaction.add(...instructions);
+    // transaction.add(...innerTransaction.instructions);
     return transaction;
   }
 }
