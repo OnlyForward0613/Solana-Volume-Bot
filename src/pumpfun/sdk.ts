@@ -108,7 +108,7 @@ export class PumpFunSDK {
       // })
       console.log(`account Set length, ${accountSet.size}`);
 
-      let chunkAccounts = chunkArrayByCondition(Array.from(accountSet), [10, 25, 25]);
+      let chunkAccounts = chunkArrayByCondition(Array.from(accountSet), [10, 30, 30]);
        // move Set to Array
       // chunkAccounts.map((element, index) => {
       //   console.log(`accountAccount:${index}, length:${element.length} =>`, element.map((e) => e.toBase58()));
@@ -374,18 +374,14 @@ export class PumpFunSDK {
     mintPubKey: PublicKey,
     jitoFee: number,
     globalAccount: GlobalAccount,
+    bondingCurveAccount: BondingCurveAccount,
     SLIPPAGE_BASIS_POINTS: bigint,
     priorityFees?: PriorityFee,
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ) {
     try {
-      let bondingCurveAccount = await this.getBondingCurveAccount(
-        mintPubKey,
-        commitment
-      );
-      if (!bondingCurveAccount) throw Error("Errors when getting bondCurveAccount. It seems like there are some errors in rpc, or didn't create token yet");
-
+ 
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
       let initialTx = new Transaction();
@@ -441,18 +437,14 @@ export class PumpFunSDK {
     jitoFee: number,
     authKey: string,
     globalAccount: GlobalAccount,
+    bondingCurveAccount: BondingCurveAccount,
     SLIPPAGE_BASIS_POINTS: bigint,
     priorityFees?: PriorityFee,
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ) {
     try {
-      let bondingCurveAccount = await this.getBondingCurveAccount(
-        mintPubKey,
-        commitment
-      );
-      if (!bondingCurveAccount) throw Error("Errors when getting bondCurveAccount. It seems like there are some errors in rpc, or didn't create token yet");
-
+     
       let latestBlockhash = await this.connection.getLatestBlockhash();
 
       const bundleTxs: VersionedTransaction[] = [];

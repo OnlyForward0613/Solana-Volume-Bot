@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { launchTokenService, distributionService, gatherService, sellService, sellDumpAllService } from "../services/pumpfun.service";
-import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { launchTokenService, distributionService, gatherService, sellOneService, sellDumpAllService } from "../services/pumpfun.service";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { ResponseStatus } from "../core/ApiResponse";
 import { AmountType, Key, NetworkType, WalletKey } from "../cache/keys";
@@ -209,8 +209,9 @@ export const sellByPercentage = async (req: Request, res: Response) => {
     
     if (!tokenFloatAmount) throw Error("Don't have any token in the wallet");
     let tokenAmount = BigInt(Math.floor(DEFAULT_POW * tokenFloatAmount * percentage / 100));
+    // let tokenAmount = BigInt(Math.floor(DEFAULT_POW * 100 * percentage/ 100));
 
-    const result = await sellService(
+    const result = await sellOneService(
       {
         walletAccount,
         mintPubKey: mintAccount.publicKey,
@@ -256,7 +257,7 @@ export const sellByAmount = async (req: Request, res: Response) => {
    
     const jitoFee = jitoFees[authKey];
     
-    const result = await sellService(
+    const result = await sellOneService(
       {
         walletAccount,
         mintPubKey: mintAccount.publicKey,
@@ -301,12 +302,12 @@ export const sellDumpAll = async (req: Request, res: Response) => {
     let sellTokenAmounts: bigint[] = [];
     let sellAccounts: Keypair[] = [];
     const connection = userConnections[authKey];
-
+    // let mintPubKey = new PublicKey("G748DbPu713PkumVJo4nXcXuyCTBYbhNQtMjjgzxpump");
     await Promise.all(walletAccounts.map(async (account, index) => {
       let amount = await getSPLBalance(connection, mint.publicKey, account.publicKey);
       if (amount && amount > 0) {
         sellAccounts.push(account);
-        sellTokenAmounts.push(BigInt(Math.floor(DEFAULT_POW * amount)));
+        sellTokenAmounts.push(BigInt(Math.floor(DEFAULT_POW * amount / 10)));
       }
     }));
 

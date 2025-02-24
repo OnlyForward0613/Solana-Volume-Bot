@@ -1,17 +1,25 @@
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from "@solana/web3.js";
+import { 
+  Keypair, 
+  LAMPORTS_PER_SOL, 
+  PublicKey, 
+  SystemProgram,
+  Transaction, 
+  TransactionInstruction,
+  Connection,
+} from "@solana/web3.js";
 import { LaunchTokenType, DistributionType, GatherType, sellType, SellDumpAllType } from "../types";
 import { buildTx, sleep } from "../helper/util";
-import { DEFAULT_JITO_FEE, private_connection, pumpFunSDKs} from "../config";
+import { DEFAULT_JITO_FEE, private_connection, pumpFunSDKs, userConnections} from "../config";
 import { TokenMetadataType } from "../pumpfun/types";
 import base58 from "bs58";
 import { getJitoTipWallet, jitoWithAxios } from "../helper/jitoWithAxios";
 import chunk from 'lodash/chunk';
-import { Transaction } from "@solana/web3.js";
-import { TransactionInstruction } from "@solana/web3.js";
-import { Connection } from "@solana/web3.js";
 import { getValue } from "../cache/query";
 import { Key } from "../cache/keys";
-import { BondingCurveAccount } from "../pumpfun/bondingCurveAccount";
+import { PoolKeys } from "../raydium/getPoolKeys";
+import { NATIVE_MINT } from "@solana/spl-token";
+import { RaydiumSDK } from "../raydium/raydiumSDK";
+import { LiquidityPoolKeys } from "@raydium-io/raydium-sdk";
 
 const SLIPPAGE_BASIS_POINTS = 200n;
 
@@ -288,7 +296,7 @@ export const gatherService = async (
   }
 }
 
-export const sellService = async (
+export const sellOneService = async (
   {
     walletAccount,
     mintPubKey,
@@ -299,20 +307,44 @@ export const sellService = async (
 ) => {
   try {
     let sdk = pumpFunSDKs[authKey];
-    let globalAccount = await sdk.getGlobalAccount();
-    if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
-    
-    const result = await sdk.sellOne(
-      walletAccount,
-      walletAccount,
-      tokenAmount, // sell token amount
+    let bondingCurveAccount = await sdk.getBondingCurveAccount(
       mintPubKey,
-      jitoFee,
-      globalAccount,
-      SLIPPAGE_BASIS_POINTS
     );
+    if (!bondingCurveAccount) throw Error("Errors when getting bondCurveAccount. It seems like there are some errors in rpc, or didn't create token yet");
 
-    if (result.confirmed) {
+    let result;
+    if (bondingCurveAccount.complete) { // SELL in Raydium
+      const poolKeys = await PoolKeys.fetchPoolKeyInfo(
+        userConnections[authKey], 
+        NATIVE_MINT,
+        mintPubKey,
+      );
+      if (!poolKeys) throw Error("Errors when getting fetPoolKeyInfo");
+      const raydiumSDK = new RaydiumSDK(userConnections[authKey]);
+      result = await raydiumSDK.sellOne(
+        walletAccount,
+        tokenAmount, // sell token amount
+        poolKeys as LiquidityPoolKeys,
+        mintPubKey,
+        jitoFee,
+        SLIPPAGE_BASIS_POINTS
+      );
+    } else { // SELL in Pumpfun
+      let globalAccount = await sdk.getGlobalAccount();
+      if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
+
+      result = await sdk.sellOne(
+        walletAccount,
+        walletAccount,
+        tokenAmount, // sell token amount
+        mintPubKey,
+        jitoFee,
+        globalAccount,
+        bondingCurveAccount,
+        SLIPPAGE_BASIS_POINTS
+      );
+    }
+    if (result?.confirmed) {
       console.log("Success creation:", `https://pump.fun/${mintPubKey.toBase58()}`);
       console.log(`https://solscan.io/tx/${result.content}`);
     }
@@ -341,18 +373,55 @@ export const sellDumpAllService = async (
     let globalAccount = await sdk.getGlobalAccount();
     if (!globalAccount) throw Error("It seems like there are some errors in rpc or network, plz try again");
     
-    const result =  await sdk.sellDumpAll(
-      payer,
-      sellAccounts,
-      sellTokenAmounts,
+    let bondingCurveAccount = await sdk.getBondingCurveAccount(
       mintPubKey,
-      jitoFee,
-      authKey,
-      globalAccount,
-      SLIPPAGE_BASIS_POINTS,
     );
+    if (!bondingCurveAccount) throw Error("Errors when getting bondCurveAccount. It seems like there are some errors in rpc, or didn't create token yet");
 
-    if (result && result.confirmed) {
+    let result;
+    if (bondingCurveAccount.complete) {
+      const poolKeys = await PoolKeys.fetchPoolKeyInfo(
+        userConnections[authKey], 
+        NATIVE_MINT,
+        mintPubKey,
+      );
+      if (!poolKeys) throw Error("Errors when getting fetPoolKeyInfo");
+      const raydiumSDK = new RaydiumSDK(userConnections[authKey]);
+      // result = await raydiumSDK.createLUT(
+      //   payer,
+      //   sellAccounts,
+      //   mintPubKey,
+      //   authKey,
+      //   jitoFee,
+      //   SLIPPAGE_BASIS_POINTS
+      // )
+      sellAccounts.map((account, index) => {
+        console.log(`account:${index}, ${account.publicKey.toBase58()}, ${sellTokenAmounts[index]}`);
+      })
+      result = await raydiumSDK.sellDumpAll(
+        sellAccounts,
+        sellTokenAmounts,
+        poolKeys as LiquidityPoolKeys,
+        mintPubKey,
+        authKey,
+        jitoFee,
+        SLIPPAGE_BASIS_POINTS
+      );
+    } else {
+      result = await sdk.sellDumpAll(
+        payer,
+        sellAccounts,
+        sellTokenAmounts,
+        mintPubKey,
+        jitoFee,
+        authKey,
+        globalAccount,
+        bondingCurveAccount,
+        SLIPPAGE_BASIS_POINTS,
+      );
+    }
+
+    if (result?.confirmed) {
       console.log("sellDumpAll bundle is success:", `https://pump.fun/${mintPubKey.toBase58()}`);
       console.log(`https://solscan.io/tx/${result.content}`);
     }
