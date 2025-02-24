@@ -50,7 +50,7 @@ export default {
     common: Joi.array().required().items(Joi.number().min(0)),
   }),
   setSellPercentage: Joi.object().keys({
-    sellPercentage: Joi.array().length(4).required().items(Joi.number().min(0).less(100)),
+    sellPercentage: Joi.array().length(4).required().items(Joi.number().min(0).less(101)),
   }),
   setSellAmount: Joi.object().keys({
     sellAmount: Joi.number().required().min(0),

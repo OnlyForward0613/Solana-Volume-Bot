@@ -23,6 +23,8 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, TOKEN_2022_
 import base58 from "bs58";
 import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
 import { BONDING_CURVE_SEED, FEE_RECIPICEMT, GLOBAL_ACCOUNT, METADATA_SEED, MINT_AUTHORITY, MPL_TOKEN_METADATA_PROGRAM_ID, PROGRAM_ID } from "../pumpfun/sdk";
+import { OPENBOOK_ADDRESS, RAYDIUM_AMM_AUTHORITY, RAYDIUM_POOL_V4_PROGRAM_ID } from "../raydium/getPoolKeys";
+import { SPL_ACCOUNT_LAYOUT } from "@raydium-io/raydium-sdk";
 
 export const DEFAULT_COMMITMENT: Commitment = "processed";
 export const DEFAULT_FINALITY: Finality = "finalized";
@@ -385,6 +387,8 @@ export const getAllAccountsForLUT = (
       ASSOCIATED_TOKEN_PROGRAM_ID,
     );
 
+    
+
     accountsForLUT.push(
       GLOBAL_ACCOUNT,
       MINT_AUTHORITY,
@@ -400,6 +404,10 @@ export const getAllAccountsForLUT = (
       TOKEN_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID,
       SYSVAR_RENT_PUBKEY,
+      // Raydium
+      RAYDIUM_POOL_V4_PROGRAM_ID,
+      OPENBOOK_ADDRESS,
+      RAYDIUM_AMM_AUTHORITY,
       payerPK
     );
 
@@ -454,4 +462,19 @@ export const chunkArrayByCondition = (
     chunkAccounts.push(accounts.slice(start, end));
   }
   return chunkAccounts;
+}
+
+export const getOwnerTokenAccounts = async (
+  connection: Connection,
+  walletPK: PublicKey,
+) => {
+  const walletATAs = await connection.getTokenAccountsByOwner(walletPK, {
+    programId: TOKEN_PROGRAM_ID,
+  })
+
+  return walletATAs.value.map((i) => ({
+    pubkey: i.pubkey,
+    programId: i.account.owner,
+    accountInfo: SPL_ACCOUNT_LAYOUT.decode(i.account.data),
+  }))
 }

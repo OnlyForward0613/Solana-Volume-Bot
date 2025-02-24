@@ -2,6 +2,7 @@ import { Router } from "express";
 import { 
   distributionSol, 
   gatherFund, 
+  gatherWsol, 
   launchToken, 
   sellByAmount, 
   sellByPercentage, 
@@ -53,6 +54,7 @@ router.get("/sell-dump-all", checkAuthKey, sellDumpAll);
 // distribution and gather
 router.post("/distributionSol", checkAuthKey, validator(schema.distributionToWallets), distributionSol);
 router.get("/gather-fund", checkAuthKey, gatherFund);
+router.get("/gather-wsol", checkAuthKey, gatherWsol);
 
 // Generate wallets
 router.get("/generate-wallet/common", checkAuthKey, validator(schema.generateCommonWallets, ValidationSource.QUERY), generateCommonWallets);
