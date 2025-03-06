@@ -478,3 +478,15 @@ export const getOwnerTokenAccounts = async (
     accountInfo: SPL_ACCOUNT_LAYOUT.decode(i.account.data),
   }))
 }
+
+export const photonTipIx = (
+  fromPubkey: PublicKey,
+  toPubkey: PublicKey, 
+  feeAmount: number,
+) => {
+  return SystemProgram.transfer({
+    fromPubkey: fromPubkey,
+    toPubkey: toPubkey,
+    lamports: feeAmount,
+  });
+}

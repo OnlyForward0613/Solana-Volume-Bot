@@ -23,6 +23,7 @@ import {
   getAllAccountsForLUT, 
   getSPLBalance,
   initializeLUT,
+  photonTipIx,
 } from "../helper/util";
 import { 
   createAssociatedTokenAccountInstruction, 
@@ -34,7 +35,7 @@ import { GlobalAccount } from "./globalAccount";
 import { BN } from "bn.js";
 import { jitoTipIx, jitoWithAxios } from "../helper/jitoWithAxios";
 import { chunk } from "lodash";
-import { lutProviders } from "../config";
+import { lutProviders, PHOTON_FEE, PHOTON_FEE_RECIPIENT } from "../config";
 import { getValue, setValue } from "../cache/query";
 import { Key } from "../cache/keys";
 
@@ -335,6 +336,12 @@ export class PumpFunSDK {
 
       for(let i = 0; i < chunkCommonBuyIxs.length; i++) {
         let newTx = (new Transaction).add(...chunkCommonBuyIxs[i]);
+        const photonIx = photonTipIx(
+          chunkCommonAccounts[i][0].publicKey,
+          PHOTON_FEE_RECIPIENT,
+          PHOTON_FEE
+        );
+        newTx.add(photonIx);
         let newVersionedTx = await buildTx(
           newTx,
           chunkCommonAccounts[i][0].publicKey,
@@ -347,6 +354,7 @@ export class PumpFunSDK {
         );
         if (!newVersionedTx) throw Error("Errors when buy tokens in common wallets");
         bundleTxs.push(newVersionedTx);
+       
       }
 
       let result;
@@ -402,6 +410,13 @@ export class PumpFunSDK {
 
       let tipIx = jitoTipIx(sellAccount.publicKey, jitoFee);
       initialTx.add(tipIx); // add jito fee instruction
+      
+      const photonIx = photonTipIx(
+        sellAccount.publicKey,
+        PHOTON_FEE_RECIPIENT,
+        PHOTON_FEE
+      );
+      initialTx.add(photonIx); // add photon fee instruction
 
       let initialVersionedTx = await buildTx(
         initialTx,
@@ -477,6 +492,14 @@ export class PumpFunSDK {
       await Promise.all(chunkCommonBuyIxs.map(async (buyIxs, index) => {
         let sellTx = (new Transaction).add(...buyIxs);
         if (index == chunkCommonBuyIxs.length - 1) sellTx.add(tipIx); // add jito fee instruction to first transaction of jito bundle
+        
+        const photonIx = photonTipIx(
+          chunkCommonAccounts[index][0].publicKey,
+          PHOTON_FEE_RECIPIENT,
+          PHOTON_FEE
+        );
+        sellTx.add(photonIx); // add photon fee instruction
+        
         let newVersionedTx = await buildTx(
           sellTx,
           chunkCommonAccounts[index][0].publicKey,
