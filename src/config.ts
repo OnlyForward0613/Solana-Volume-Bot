@@ -25,6 +25,8 @@ export const BLOCKENGINE_URL="tokyo.mainnet.block-engine.jito.wtf"
 // export const JITO_AUTH_KEYPAIR = "66xqL9aFZJ8k9YpjNBexNASfuoDgNE1ZpGRXB28zoTfS4u2czzVBhMNMqgZYFeMN8FnUi6gMzXWgVYRHkTZ6yuLC"
 // export const JITO_KEY="66xqL9aFZJ8k9YpjNBexNASfuoDgNE1ZpGRXB28zoTfS4u2czzVBhMNMqgZYFeMN8FnUi6gMzXWgVYRHkTZ6yuLC"
 export const DEFAULT_JITO_FEE = 200000; // 0.0002 sol
+export const PHOTON_FEE = 1;
+export const PHOTON_FEE_RECIPIENT = new PublicKey("AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH");
 
 // export const lutProviders : { [key: string] : LookupTableProvider } = {};
 export const lutProviders: { [key: string] : PublicKey } = {};

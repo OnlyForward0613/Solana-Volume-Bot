@@ -19,10 +19,22 @@ import {
 import { PriorityFee } from "../pumpfun/types";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import fs from "fs";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { 
+  ASSOCIATED_TOKEN_PROGRAM_ID, 
+  getAssociatedTokenAddressSync, 
+  TOKEN_PROGRAM_ID 
+} from "@solana/spl-token";
 import base58 from "bs58";
 import { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
-import { BONDING_CURVE_SEED, FEE_RECIPICEMT, GLOBAL_ACCOUNT, METADATA_SEED, MINT_AUTHORITY, MPL_TOKEN_METADATA_PROGRAM_ID, PROGRAM_ID } from "../pumpfun/sdk";
+import { 
+  BONDING_CURVE_SEED, 
+  FEE_RECIPICEMT, 
+  GLOBAL_ACCOUNT, 
+  METADATA_SEED, 
+  MINT_AUTHORITY, 
+  MPL_TOKEN_METADATA_PROGRAM_ID,
+  PUMP_PROGRAM_ID,
+} from "../pumpfun/sdk";
 import { OPENBOOK_ADDRESS, RAYDIUM_AMM_AUTHORITY, RAYDIUM_POOL_V4_PROGRAM_ID } from "../raydium/getPoolKeys";
 import { SPL_ACCOUNT_LAYOUT } from "@raydium-io/raydium-sdk";
 
@@ -375,7 +387,7 @@ export const getAllAccountsForLUT = (
 
     const [bondingCurve] = PublicKey.findProgramAddressSync(
       [Buffer.from(BONDING_CURVE_SEED), mintPK.toBuffer()],
-      new PublicKey(PROGRAM_ID),
+      new PublicKey(PUMP_PROGRAM_ID),
     );
 
     const [associatedBondingCurve] = PublicKey.findProgramAddressSync(
@@ -397,7 +409,7 @@ export const getAllAccountsForLUT = (
       bondingCurve,
       associatedBondingCurve,
       mintPK,
-      new PublicKey(PROGRAM_ID), // pumpfun program
+      new PublicKey(PUMP_PROGRAM_ID), // pumpfun program
       FEE_RECIPICEMT,
       SystemProgram.programId,
       // TOKEN_2022_PROGRAM_ID,
@@ -477,4 +489,16 @@ export const getOwnerTokenAccounts = async (
     programId: i.account.owner,
     accountInfo: SPL_ACCOUNT_LAYOUT.decode(i.account.data),
   }))
+}
+
+export const photonTipIx = (
+  fromPubkey: PublicKey,
+  toPubkey: PublicKey, 
+  feeAmount: number,
+) => {
+  return SystemProgram.transfer({
+    fromPubkey: fromPubkey,
+    toPubkey: toPubkey,
+    lamports: feeAmount,
+  });
 }

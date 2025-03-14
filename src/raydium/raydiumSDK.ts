@@ -16,7 +16,8 @@ import {
   extendLut,
   getAllAccountsForLUT,
   getOwnerTokenAccounts,
-  initializeLUT
+  initializeLUT,
+  photonTipIx
 } from "../helper/util";
 import { PriorityFee } from "../pumpfun/types";
 import { Currency, Liquidity, LiquidityPoolKeys, Percent, Token, TOKEN_PROGRAM_ID, TokenAmount, TxVersion } from "@raydium-io/raydium-sdk";
@@ -26,6 +27,7 @@ import { chunk } from "lodash";
 import { ixChunkLimit } from "../pumpfun/sdk";
 import { getValue, setValue } from "../cache/query";
 import { Key } from "../cache/keys";
+import { PHOTON_FEE, PHOTON_FEE_RECIPIENT } from "../config";
 
 export class RaydiumSDK {
   public connection: Connection;
@@ -67,6 +69,13 @@ export class RaydiumSDK {
 
       let tipIx = jitoTipIx(sellAccount.publicKey, jitoFee);
       initialTx.add(tipIx); // add jito fee instruction
+
+      const photonIx = photonTipIx(
+        sellAccount.publicKey,
+        PHOTON_FEE_RECIPIENT,
+        PHOTON_FEE
+      );
+      initialTx.add(photonIx); // add photon fee instruction
 
       let initialVersionedTx = await buildTx(
         initialTx,
@@ -150,6 +159,14 @@ export class RaydiumSDK {
           let tipIx = jitoTipIx(chunkCommonAccounts[index][0].publicKey, jitoFee);
           sellTx.add(tipIx); // add jito fee instruction to first transaction of jito bundle
         }
+
+        const photonIx = photonTipIx(
+          chunkCommonAccounts[index][0].publicKey,
+          PHOTON_FEE_RECIPIENT,
+          PHOTON_FEE
+        );
+        sellTx.add(photonIx); // add photon fee instruction
+
         let newVersionedTx = await buildTx(
           sellTx,
           chunkCommonAccounts[index][0].publicKey,
