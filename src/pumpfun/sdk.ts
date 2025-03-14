@@ -40,9 +40,9 @@ import { getValue, setValue } from "../cache/query";
 import { Key } from "../cache/keys";
 
 
-export const PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"; // pumpfun program
+export const PUMP_PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"; // pumpfun program
 export const MPL_TOKEN_METADATA_PROGRAM_ID = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"; 
-export const FEE_RECIPICEMT = new PublicKey("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM"); // global.fee_repicient
+export const FEE_RECIPICEMT = new PublicKey("62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV"); // global.fee_repicient
 export const EVENT_AUTHORITY = new PublicKey("Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1");
 export const GLOBAL_ACCOUNT = new PublicKey("4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf"); // pumpfun global account
 export const MINT_AUTHORITY = new PublicKey("TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM");
@@ -118,12 +118,15 @@ export class PumpFunSDK {
       
       let extendLutIxs: TransactionInstruction[] = [];
       chunkAccounts.map(element => {
-        extendLutIxs.push(extendLut( // add extend instruction
-          lut as PublicKey,
-          payer.publicKey,
-          element
-        ));
+        if (element.length > 0) {
+          extendLutIxs.push(extendLut( // add extend instruction
+            lut as PublicKey,
+            payer.publicKey,
+            element
+          ));
+        }
       });
+      console.log("extendLutIxs", extendLutIxs.length);
 
       lutTx.add(extendLutIxs[0]); // add 1nd extend lut instruction
       
@@ -143,6 +146,7 @@ export class PumpFunSDK {
       );
       
       if (!lutVersionedTx) throw Error("lut transation was empty");
+      // console.log("lut transaction", lutVersionedTx)
       
       let createAndBuyDevTx = new Transaction();
       let devAccount = buyers[0];
@@ -181,6 +185,7 @@ export class PumpFunSDK {
           // lutAccount ? [lutAccount]: null
         );
         if (!createAndBuyDevVersionedTx) throw Error("dev create and buy transation was empty");
+        // console.log("create transaction", createAndBuyDevTx);
         bundleTxs.push(createAndBuyDevVersionedTx);
 
         let buySniperTx = await this.getBuyInstructionsBySolAmount( // using slippage buy
@@ -540,10 +545,10 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT
   ) {
 
-    let sellAmountWithSlippage = calculateWithSlippageSell(
-      minSolOutput,
-      slippageBasisPoints
-    );
+    // let sellAmountWithSlippage = calculateWithSlippageSell(
+    //   minSolOutput,
+    //   slippageBasisPoints
+    // );
 
     return await this.getSellInstructions(
       seller,
@@ -561,11 +566,11 @@ export class PumpFunSDK {
     tokneAmount: bigint, // input token amount
     minSolOutput: bigint // out minimal sol amount
   ) {
-    const associatedBondingCurve = await getAssociatedTokenAddress(
-      mint,
-      this.getBondingCurvePDA(mint),
-      true
-    );
+    // const associatedBondingCurve = await getAssociatedTokenAddress(
+    //   mint,
+    //   this.getBondingCurvePDA(mint),
+    //   true
+    // );
 
     const associatedUser = await getAssociatedTokenAddress(mint, seller, false);
 
@@ -577,7 +582,6 @@ export class PumpFunSDK {
         .accounts({
           feeRecipient: feeRecipient,
           mint: mint,
-          associatedBondingCurve: associatedBondingCurve,
           associatedUser: associatedUser,
           user: seller,
         })
@@ -595,29 +599,27 @@ export class PumpFunSDK {
     uri: string,
     mint: Keypair
   ) {
-    const mplTokenMetadata = new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID);
+    // const mplTokenMetadata = new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID);
 
-    const [metadataPDA] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from(METADATA_SEED),
-        mplTokenMetadata.toBuffer(),
-        mint.publicKey.toBuffer()
-      ],
-      mplTokenMetadata
-    );
+    // const [metadataPDA] = PublicKey.findProgramAddressSync(
+    //   [
+    //     Buffer.from(METADATA_SEED),
+    //     mplTokenMetadata.toBuffer(),
+    //     mint.publicKey.toBuffer()
+    //   ],
+    //   mplTokenMetadata
+    // );
 
-    const associatedBondingCurve = await getAssociatedTokenAddress(
-      mint.publicKey,
-      this.getBondingCurvePDA(mint.publicKey),
-      true // allow owner account to be PDA
-    );
+    // const associatedBondingCurve = await getAssociatedTokenAddress(
+    //   mint.publicKey,
+    //   this.getBondingCurvePDA(mint.publicKey),
+    //   true // allow owner account to be PDA
+    // );
 
     return this.program.methods
-      .create(name, symbol, uri)
+      .create(name, symbol, uri, creator)
       .accounts({
         mint: mint.publicKey,
-        associatedBondingCurve: associatedBondingCurve,
-        metadata: metadataPDA,
         user: creator,
       })
       .signers([mint])
@@ -679,11 +681,11 @@ export class PumpFunSDK {
     solAmount: bigint,
     commitment: Commitment = DEFAULT_COMMITMENT,
   ) {
-    const associatedBondingCurve = await getAssociatedTokenAddress(
-      mint,
-      this.getBondingCurvePDA(mint),
-      true
-    );
+    // const associatedBondingCurve = await getAssociatedTokenAddress(
+    //   mint,
+    //   this.getBondingCurvePDA(mint),
+    //   true
+    // );
 
     const associatedUser = await getAssociatedTokenAddress(mint, buyer, false);
 
@@ -708,7 +710,6 @@ export class PumpFunSDK {
         .accounts({
           feeRecipient: feeRecipient,
           mint: mint,
-          associatedBondingCurve: associatedBondingCurve,
           associatedUser: associatedUser,
           user: buyer,
         })
@@ -721,29 +722,29 @@ export class PumpFunSDK {
   // Simulate buy amounts based on inital reserves
   simulateBuys(amounts: bigint[]) { 
     
-    // const tokenTotalSupply = 1000000000 * tokenDecimals;
-    let initialRealSolReserves = 0;
-    let initialVirtualTokenReserves = 1073000000 * DEFAULT_POW;
-    let initialRealTokenReserves = 793100000 * DEFAULT_POW;
+    // const token_total_supply = 1000000000 * tokenDecimals;
+    let initialreal_sol_reserves = 0;
+    let initial_virtual_token_reserves = 1073000000 * DEFAULT_POW;
+    let initial_real_token_reserves = 793100000 * DEFAULT_POW;
     let totalTokensBought = 0;
 
     const buys = [];
 
     for (let solAmount of amounts) {
       const e = new BN(solAmount.toString());
-      const initialVirtualSolReserves = 30 * LAMPORTS_PER_SOL + initialRealSolReserves;
-      const a = new BN(initialVirtualSolReserves).mul(new BN(initialVirtualTokenReserves)); // k = x * y
-      const i = new BN(initialVirtualSolReserves).add(e);
+      const initial_virtual_sol_reserves = 30 * LAMPORTS_PER_SOL + initialreal_sol_reserves;
+      const a = new BN(initial_virtual_sol_reserves).mul(new BN(initial_virtual_token_reserves)); // k = x * y
+      const i = new BN(initial_virtual_sol_reserves).add(e);
       const l = a.div(i).add(new BN(1));
-      let tokensToBuy = new BN(initialVirtualTokenReserves).sub(l);
+      let tokensToBuy = new BN(initial_virtual_token_reserves).sub(l);
 
-      tokensToBuy = BN.min(tokensToBuy, new BN(initialRealTokenReserves));
+      tokensToBuy = BN.min(tokensToBuy, new BN(initial_real_token_reserves));
 
       const tokensBought = tokensToBuy.toNumber();
       buys.push({ solAmount: solAmount, tokenAmount: BigInt(tokensToBuy.toString()) });
-      initialRealSolReserves += e.toNumber();
-      initialRealTokenReserves -= tokensBought;
-      initialVirtualTokenReserves -= tokensBought;
+      initialreal_sol_reserves += e.toNumber();
+      initial_real_token_reserves -= tokensBought;
+      initial_virtual_token_reserves -= tokensBought;
       totalTokensBought += tokensBought;
     }
 
@@ -753,7 +754,7 @@ export class PumpFunSDK {
   async getGlobalAccount(commitment: Commitment = DEFAULT_COMMITMENT) {
     const [globalAccountPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from(GLOBAL_ACCOUNT_SEED)],
-      new PublicKey(PROGRAM_ID)
+      new PublicKey(PUMP_PROGRAM_ID)
     );
 
     const tokenAccount = await this.connection.getAccountInfo(
