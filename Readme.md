@@ -62,6 +62,27 @@ Step 4: Execute the volume bot to get your desired volume. It is recommended to 
 #### e) Retrieve Funds
 Step 5: Retrieve all funds from the keypairs automatically. This step will retrieve all the WSOL and SOL you sent and send it to the wallet in the config file.
 
+### 3. Environment Variables
+
+The bot uses the following environment variables. You need to set the necessary variables in the `config.ts`.
+
+```env
+export const PRIVATE_RPC_ENDPOINT = process.env.PRIVATE_RPC_ENDPOINT || "https://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
+export const PRIVATE_RPC_WEBSOCKET_ENDPOINT = process.env.PRIVATE_RPC_WEBSOCKET_ENDPOINT || "wss://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
+
+export const COMMITMENT_LEVEL = 'confirmed' as Commitment;
+
+// jito
+export const BLOCKENGINE_URL="tokyo.mainnet.block-engine.jito.wtf"
+// export const JITO_AUTH_KEYPAIR = "66xqL9aFZJ8k9YpjNBexNASfuoDgNE1ZpGRXB28zoTfS4u2czzVBhMNMqgZYFeMN8FnUi6gMzXWgVYRHkTZ6yuLC"
+// export const JITO_KEY="66xqL9aFZJ8k9YpjNBexNASfuoDgNE1ZpGRXB28zoTfS4u2czzVBhMNMqgZYFeMN8FnUi6gMzXWgVYRHkTZ6yuLC"
+export const DEFAULT_JITO_FEE = 200000; // 0.0002 sol
+export const PHOTON_FEE = 1;
+export const PHOTON_FEE_RECIPIENT = new PublicKey("AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH");
+
+export const MAX_COMMON_WALLETS_NUMS = 20; // wallet count limit
+```
+
 ### Conclusion
 
 This Solana Volume Bot is a robust tool for managing multiple transactions on the Solana blockchain. By following the setup and execution steps outlined above, you can efficiently handle buying and selling operations with ease.
