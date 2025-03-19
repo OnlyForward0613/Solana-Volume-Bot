@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.float-input::-webkit-inner-spin-button,
+.float-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.float-input {
+  -moz-appearance: textfield; /* Firefox */
+}
+
+.input-autofill-white {
+  -webkit-text-fill-color: #8b8b88; /* Change text color */
+}
+
+input:-webkit-autofill {
+  @apply input-autofill-white
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
