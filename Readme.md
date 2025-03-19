@@ -6,7 +6,7 @@ Welcome to the Solana Volume Bot, an open-source script designed to help you ach
 OPEN Source Version:
 
 
-https://github.com/user-attachments/assets/940a730a-93c3-4f73-a05c-05adc06dcc8e
+![2025-03-19_15-44-52](https://github.com/user-attachments/assets/ac204ca8-eba9-4d08-929c-1de6dc5db786)
 ![2025-03-19_15-48-11](https://github.com/user-attachments/assets/6b2245ec-f452-482e-a88a-accc4450d560)
 ![2025-03-19_15-48-33](https://github.com/user-attachments/assets/6cc6f0ab-1064-48df-98d8-b471f2fa4a05)
 ![2025-03-19_15-48-46](https://github.com/user-attachments/assets/dba15652-4064-4317-a8c4-10aa7bb785b3)
