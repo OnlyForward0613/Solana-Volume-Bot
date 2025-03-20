@@ -7,7 +7,7 @@ import { useDispatch } from "react-redux";
 const mockDevWalletData = {
   name: "Dev Wallet",
   address: "ksfljweirowoqerijoerjiroqwejoreasfwer",
-  privateKey: "234355w3452fnnvlzx53t4r295r2wrwwtetetr43535345q",
+  privateKey: "xxx...",
   amount: 30.12,
   sellOptions: [25, 50, 75, 100],
 };
