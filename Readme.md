@@ -1,5 +1,5 @@
-# Solana Volume Bot
-
+# Solana Volume Bot on Raydium and Pumpfun
+# [📞Telegram](https://t.me/daveex0086)
 Welcome to the Solana Volume Bot, an open-source script designed to help you achieve desired transaction volumes on the Solana blockchain. This powerful tool is perfect for users looking to manage multiple transactions efficiently and effectively.
 
 
@@ -67,15 +67,15 @@ Step 5: Retrieve all funds from the keypairs automatically. This step will retri
 The bot uses the following environment variables. You need to set the necessary variables in the `config.ts`.
 
 ```env
-export const PRIVATE_RPC_ENDPOINT = process.env.PRIVATE_RPC_ENDPOINT || "https://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
-export const PRIVATE_RPC_WEBSOCKET_ENDPOINT = process.env.PRIVATE_RPC_WEBSOCKET_ENDPOINT || "wss://mainnet.helius-rpc.com/?api-key=a8769523-bf96-4884-bcc0-cf79af6acce3";
+export const PRIVATE_RPC_ENDPOINT = process.env.PRIVATE_RPC_ENDPOINT || "https://mainnet.helius-rpc.com/?api-key=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx";
+export const PRIVATE_RPC_WEBSOCKET_ENDPOINT = process.env.PRIVATE_RPC_WEBSOCKET_ENDPOINT || "wss://mainnet.helius-rpc.com/?api-key=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx";
 
 export const COMMITMENT_LEVEL = 'confirmed' as Commitment;
 
 // jito
 export const BLOCKENGINE_URL="tokyo.mainnet.block-engine.jito.wtf"
-// export const JITO_AUTH_KEYPAIR = "66xqL9aFZJ8k9YpjNBexNASfuoDgNE1ZpGRXB28zoTfS4u2czzVBhMNMqgZYFeMN8FnUi6gMzXWgVYRHkTZ6yuLC"
-// export const JITO_KEY="66xqL9aFZJ8k9YpjNBexNASfuoDgNE1ZpGRXB28zoTfS4u2czzVBhMNMqgZYFeMN8FnUi6gMzXWgVYRHkTZ6yuLC"
+// export const JITO_AUTH_KEYPAIR = "xxx...."
+// export const JITO_KEY="xxx...."
 export const DEFAULT_JITO_FEE = 200000; // 0.0002 sol
 export const PHOTON_FEE = 1;
 export const PHOTON_FEE_RECIPIENT = new PublicKey("AVUCZyuT35YSuj4RH7fwiyPu82Djn2Hfg7y2ND2XcnZH");
